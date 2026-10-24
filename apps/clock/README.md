@@ -58,7 +58,8 @@ scripts/service.sh logs        # last 50 journal lines
 scripts/service.sh uninstall   # disable and remove the unit
 ```
 
-`start`, `stop` and `restart` also work. The script uses `sudo` for the
+`start`, `stop` and `restart` also work. The screen can show only one app, so
+`enable` also disables `komaro-digest.service` (see `../komaro-digest`). The script uses `sudo` for the
 systemd commands.
 
 The same thing by hand:

@@ -1,6 +1,8 @@
 #!/bin/sh
 # Manage the clock systemd service on this machine (run on the Pi).
 # Usage: service.sh <install|enable|disable|start|stop|restart|status|logs|uninstall>
+# The clock and the KOMARO digest share the screen, so enable stops and disables
+# komaro-digest.service (if it exists).
 set -e
 cmd="${1:-}"
 unit="$(dirname "$0")/../systemd/clock.service"
@@ -11,7 +13,8 @@ case "$cmd" in
     sudo install -m 644 "$unit" "$dest"
     sudo systemctl daemon-reload
     echo "installed; run '$0 enable' to start it at boot" ;;
-  enable)    sudo systemctl enable --now clock.service ;;
+  enable)    sudo systemctl disable komaro-digest.service 2>/dev/null || true
+             sudo systemctl enable --now clock.service ;;
   disable)   sudo systemctl disable --now clock.service ;;
   start|stop|restart)
              sudo systemctl "$cmd" clock.service ;;

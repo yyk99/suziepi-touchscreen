@@ -1,6 +1,8 @@
 [Unit]
 Description=SuziePi digital clock (LVGL on /dev/fb1)
 After=local-fs.target systemd-udevd.service
+# Only one app can use the screen: starting this one stops the KOMARO digest.
+Conflicts=komaro-digest.service
 
 [Service]
 Type=simple

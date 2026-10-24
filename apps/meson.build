@@ -13,6 +13,7 @@ add_global_arguments(
   '-DLV_USE_TINY_TTF=1',          # scalable fonts from embedded TTF data
   '-DLV_FONT_MONTSERRAT_14=1',
   '-DLV_FONT_MONTSERRAT_20=1',
+  '-DLV_FONT_MONTSERRAT_48=1',
   language : 'c')
 
 lvgl_dep = dependency('lvgl', fallback : ['lvgl', 'lvgl_dep'])
@@ -20,3 +21,4 @@ lvgl_dep = dependency('lvgl', fallback : ['lvgl', 'lvgl_dep'])
 subdir('platform')
 subdir('lvgl-hello-meson')
 subdir('clock')
+subdir('komaro-digest')

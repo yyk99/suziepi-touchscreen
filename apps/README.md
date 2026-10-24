@@ -12,6 +12,7 @@ the hardware setup.
 ├───────────────────┼─────────────────────────────────────────────────────────────────────────────┤
 │ platform/         │ suzie_platform library: display, touch, calibration, main loop, Exit button │
 │ clock/            │ Digital clock; runs at boot via systemd (see its README)                    │
+│ komaro-digest/    │ Shows the latest KOMARO InfluxDB sensor values; two pages (see its README)  │
 │ lvgl-hello-meson/ │ Hello-touch demo built on platform/                                         │
 │ lvgl-hello/       │ The same demo built with CMake, with its own copy of the glue (legacy)      │
 │ touchdraw.py      │ Python drawing demo, no build needed                                        │
@@ -27,7 +28,8 @@ sudo apt install meson ninja-build gcc-arm-linux-gnueabihf
 cd apps
 meson setup build-arm --cross-file cross/pi3.ini
 meson compile -C build-arm
-# -> build-arm/clock/clock, build-arm/lvgl-hello-meson/hello
+# -> build-arm/clock/clock, build-arm/komaro-digest/komaro-digest,
+#    build-arm/lvgl-hello-meson/hello
 ```
 
 For a quick native compile check: `meson setup build-native && meson compile -C
@@ -60,8 +62,8 @@ dependencies : suzie_platform_dep)` and add `subdir('<name>')` to
 ## Design notes
 
 - LVGL once: the LVGL options (RGB565, libc malloc, fbdev and evdev drivers,
-  Tiny TTF, Montserrat 14 and 20) are global compile arguments in `meson.build`,
-  so every app shares one LVGL build. There is no `lv_conf.h`.
+  Tiny TTF, Montserrat 14, 20 and 48) are global compile arguments in
+  `meson.build`, so every app shares one LVGL build. There is no `lv_conf.h`.
 - LVGL under meson: upstream has no `meson.build`, so
   `subprojects/packagefiles/lvgl/` provides one (applied by
   `subprojects/lvgl.wrap`). It compiles all `src/**/*.c` as C only, so no C++

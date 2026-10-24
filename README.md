@@ -167,11 +167,11 @@ it on the Pi with `sudo`, with the clock service stopped.
 
 ## Apps
 
-`apps/` holds the LVGL apps (digital clock, hello-touch demo), the shared
-`suzie_platform` library and a Python drawing demo. They draw to `/dev/fb1` and
-read the touch device by name, so nothing needs to be disabled on the console.
-The clock can start at boot through a systemd service. Build and install
-instructions are in `apps/README.md` and `apps/clock/README.md`.
+`apps/` holds the LVGL apps (digital clock, KOMARO sensor display, hello-touch
+demo), the shared `suzie_platform` library and a Python drawing demo. They draw
+to `/dev/fb1` and read the touch device by name, so nothing needs to be disabled
+on the console. The clock can start at boot through a systemd service. Build and
+install instructions are in `apps/README.md` and `apps/clock/README.md`.
 
 ## Undo
 
