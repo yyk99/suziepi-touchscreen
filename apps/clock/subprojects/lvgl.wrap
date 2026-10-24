@@ -1,0 +1,9 @@
+[wrap-git]
+url = https://github.com/lvgl/lvgl.git
+revision = v9.2.2
+depth = 1
+patch_directory = lvgl
+
+[provide]
+dependency_names = lvgl
+lvgl_dep = lvgl_dep

@@ -1,0 +1,4 @@
+build*/
+subprojects/lvgl/
+subprojects/packagecache/
+subprojects/.wraplock

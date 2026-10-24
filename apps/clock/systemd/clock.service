@@ -1,0 +1,15 @@
+[Unit]
+Description=SuziePi digital clock (LVGL on /dev/fb1)
+After=local-fs.target systemd-udevd.service
+
+[Service]
+Type=simple
+User=pi
+SupplementaryGroups=video input
+ExecStart=/home/pi/bin/clock
+# Restart after a crash, but not after the on-screen Exit button (exit code 0).
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
