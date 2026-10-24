@@ -16,6 +16,14 @@ add_global_arguments(
   '-DLV_FONT_MONTSERRAT_48=1',
   language : 'c')
 
+# Native builds draw into an SDL window and use the mouse as the touch screen
+# (suzie_platform picks SDL over fbdev/evdev when LV_USE_SDL is set). Without
+# SDL2 development files, or when cross-compiling, the Pi's fbdev/evdev is used.
+sdl_dep = dependency('sdl2', required : false)
+if not meson.is_cross_build() and sdl_dep.found()
+  add_global_arguments('-DLV_USE_SDL=1', language : 'c')
+endif
+
 lvgl_dep = dependency('lvgl', fallback : ['lvgl', 'lvgl_dep'])
 
 subdir('platform')

@@ -7,6 +7,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#define SCREEN_W 480
+#define SCREEN_H 320
 #define DEFAULT_FB "/dev/fb1"
 
 /* Raw ABS_X/ABS_Y values at the screen edges, from the 4-corner calibration
@@ -27,6 +29,7 @@ static uint32_t tick_ms(void)
     return (uint32_t)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 }
 
+#if !LV_USE_SDL
 /* Find the evdev node of the touch controller by its name. */
 static int find_touch_device(char *out, size_t len)
 {
@@ -52,6 +55,7 @@ static int find_touch_device(char *out, size_t len)
     fclose(f);
     return found;
 }
+#endif
 
 static void on_signal(int sig)
 {
@@ -59,6 +63,37 @@ static void on_signal(int sig)
     quit_requested = 1;
 }
 
+#if LV_USE_SDL
+static void display_deleted_cb(lv_event_t *e)
+{
+    (void)e;
+    quit_requested = 1; /* the SDL window was closed */
+}
+
+int suzie_init(int argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+
+    lv_init();
+    lv_tick_set_cb(tick_ms);
+
+    lv_display_t *disp = lv_sdl_window_create(SCREEN_W, SCREEN_H);
+    if (!disp) {
+        fprintf(stderr, "cannot create SDL window\n");
+        return -1;
+    }
+    lv_display_add_event_cb(disp, display_deleted_cb, LV_EVENT_DELETE, NULL);
+    lv_sdl_mouse_create();
+
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = on_signal;
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
+    return 0;
+}
+#else
 int suzie_init(int argc, char **argv)
 {
     const char *fb = DEFAULT_FB;
@@ -99,6 +134,7 @@ int suzie_init(int argc, char **argv)
     sigaction(SIGTERM, &sa, NULL);
     return 0;
 }
+#endif
 
 void suzie_request_quit(void)
 {
@@ -114,6 +150,7 @@ void suzie_run(void)
         usleep(wait * 1000);
     }
 
+#if !LV_USE_SDL
     /* Blank the screen so the last frame does not stay on the panel. */
     lv_obj_clean(lv_screen_active());
     lv_obj_set_style_bg_color(lv_screen_active(), lv_color_black(), 0);
@@ -121,6 +158,7 @@ void suzie_run(void)
         lv_timer_handler();
         usleep(20 * 1000);
     }
+#endif
 }
 
 static void exit_event_cb(lv_event_t *e)

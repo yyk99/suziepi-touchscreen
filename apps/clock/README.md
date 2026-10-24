@@ -75,11 +75,12 @@ sudo systemctl disable --now clock.service   # disable at boot, stop now
 service runs, a manual `clock` run would compete for the screen, so stop the
 service first (`scripts/service.sh stop`). The console on HDMI is unaffected.
 
-## Native build (for a quick compile check)
+## Native build (desktop window with SDL2)
 
 ```sh
 cd apps
 meson setup build-native && meson compile -C build-native
+build-native/clock/clock      # needs libsdl2-dev; the mouse acts as the touch
 ```
 
 ## Design notes

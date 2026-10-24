@@ -32,8 +32,21 @@ meson compile -C build-arm
 #    build-arm/lvgl-hello-meson/hello
 ```
 
-For a quick native compile check: `meson setup build-native && meson compile -C
-build-native`. The first configure downloads LVGL (needs network and `git`).
+## Native build and desktop simulator
+
+```sh
+sudo apt install libsdl2-dev                   # once, on the build machine
+meson setup build-native && meson compile -C build-native
+build-native/clock/clock                       # opens a 480x320 window
+```
+
+A native build with the SDL2 development files draws into a window and uses the
+mouse as the touch screen, so the apps run on the desktop without a Pi (`-f` and
+`-t` are ignored). Close the window or click Exit to quit. Without SDL2, and in
+the ARM cross build, `suzie_platform` uses `/dev/fb1` and the touch device as
+on the Pi. The SDL window does not test the fbtft driver, the touch calibration
+or the Pi's performance. The first configure downloads LVGL (needs network and
+`git`).
 Copy a binary to the Pi and run it there; stop the clock service first if it is
 enabled (`clock/scripts/service.sh stop`), because only one app can use the
 screen at a time.

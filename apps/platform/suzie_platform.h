@@ -5,6 +5,10 @@
  * Input:  XPT2046 touch controller ("ADS7846 Touchscreen") via evdev,
  *         calibrated for this panel (see ../../calibration.txt)
  *
+ * Native builds with the SDL2 development files draw into a 480x320 window
+ * instead and use the mouse as the touch screen (no fbdev/evdev, -f/-t are
+ * ignored).
+ *
  * Typical use:
  *     if (suzie_init(argc, argv) != 0) return 1;
  *     ... build the UI on lv_screen_active(), e.g. suzie_exit_button() ...
