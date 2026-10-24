@@ -16,20 +16,22 @@ into `subprojects/lvgl/` (needs network and `git`).
 
 ## Build (on the build machine)
 
+The clock is part of the meson project in `apps/` (see `../README.md`):
+
 ```sh
-cd apps/clock
+cd apps
 meson setup build-arm --cross-file cross/pi3.ini
-meson compile -C build-arm            # -> build-arm/clock (static ARM binary)
+meson compile -C build-arm     # -> build-arm/clock/clock (static ARM)
 ```
 
-Get `build-arm/clock` and this `apps/clock` directory (or a git checkout of the
-repo) onto the Pi by any means you like (git, scp, USB stick).
+Get `build-arm/clock/clock` and this `apps/clock` directory (or a git
+checkout of the repo) onto the Pi by any means you like (git, scp, USB stick).
 
 ## Install and run (on the Pi)
 
 ```sh
 cd apps/clock
-scripts/install.sh path/to/clock       # copies to ~/bin/clock, restarts the service if running
+scripts/install.sh path/to/clock   # copy to ~/bin/clock, restart service
 ~/bin/clock                            # run in the foreground
 ~/bin/clock -f /dev/fb1 -t /dev/input/event0   # explicit devices
 ```
@@ -47,7 +49,8 @@ after the on-screen Exit button. Install the binary first (see above), then use
 the helper script on the Pi:
 
 ```sh
-scripts/service.sh install     # copy the unit to /etc/systemd/system (does not enable it)
+scripts/service.sh install     # copy the unit to /etc/systemd/system
+                               # (does not enable it)
 scripts/service.sh enable      # start now and at every boot
 scripts/service.sh disable     # stop now and do not start at boot
 scripts/service.sh status      # show service state
@@ -61,7 +64,8 @@ systemd commands.
 The same thing by hand:
 
 ```sh
-sudo cp systemd/clock.service /etc/systemd/system/ && sudo systemctl daemon-reload
+sudo cp systemd/clock.service /etc/systemd/system/
+sudo systemctl daemon-reload
 sudo systemctl enable --now clock.service    # enable at boot, start now
 sudo systemctl disable --now clock.service   # disable at boot, stop now
 ```
@@ -73,6 +77,7 @@ service first (`scripts/service.sh stop`). The console on HDMI is unaffected.
 ## Native build (for a quick compile check)
 
 ```sh
+cd apps
 meson setup build-native && meson compile -C build-native
 ```
 
@@ -84,12 +89,8 @@ meson setup build-native && meson compile -C build-native
 - **CPU flags:** `-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=hard` targets
   the Pi 3 family running 32-bit Raspberry Pi OS. It will not run on a Pi
   Zero/1 (ARMv6). Remove those flags for a generic ARMv7 build.
-- **LVGL under meson:** upstream has no `meson.build`, so
-  `subprojects/packagefiles/lvgl/` provides one (applied by
-  `subprojects/lvgl.wrap`). It compiles all `src/**/*.c` as C only, so no C++
-  compiler is needed. LVGL options are global compile arguments in the top
-  `meson.build` (no `lv_conf.h`).
+- **LVGL under meson:** see `../README.md`.
 - **Time:** the Pi syncs time over NTP and uses `/etc/localtime`. The clock
   reads `localtime_r`, so change the zone on the Pi with `timedatectl`.
-- Touch calibration constants and device discovery are copied from
-  `../lvgl-hello`; factor them into a shared library if more apps are added.
+- Display, touch, calibration, the main loop and the Exit button come from the
+  shared `../platform` library (`suzie_platform`).

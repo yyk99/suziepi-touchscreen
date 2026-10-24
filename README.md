@@ -1,18 +1,37 @@
 # SuziePi 3.5" touch screen on a Raspberry Pi
 
-Setup notes for a SuziePi 3.5" SPI touch screen (480x320, ILI9486 display
-controller, XPT2046 resistive touch controller) on `pino.home`.
+Setup notes, tools and apps for a SuziePi 3.5" SPI touch screen (480x320,
+ILI9486 display controller, XPT2046 resistive touch controller) on the Raspberry
+Pi `pino.home`.
+
+## Repository layout
+
+```
+┌────────────────────────────┬─────────────────────────────────────────────────────────┐
+│ Path                       │ What                                                    │
+├────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ README.md                  │ This file: hardware setup, calibration, troubleshooting │
+│ piscreen-suzie.dts / .dtbo │ Custom device tree overlay (source and compiled)        │
+│ calib.py                   │ 4-corner touch calibration script (runs on the Pi)      │
+│ calibration.txt            │ Raw touch values to pixel conversion formulas           │
+│ apps/                      │ Apps for the screen; start with apps/README.md          │
+└────────────────────────────┴─────────────────────────────────────────────────────────┘
+```
 
 ## Target system
 
-| Item        | Value                                              |
-|-------------|----------------------------------------------------|
-| Host        | `pino.home` (`ssh pi@pino.home`)                   |
-| Board       | Raspberry Pi 3 Model A+                            |
-| OS          | Raspbian 12 (bookworm), kernel `5.10.103-v7+`      |
-| Boot files  | `/boot/config.txt`, `/boot/cmdline.txt` (not `/boot/firmware`) |
-| Desktop     | None (headless, no X/Wayland installed)            |
-| Network     | USB Ethernet (`r8152`); `disable-wifi`/`disable-bt` are set |
+```
+┌────────────┬───────────────────────────────────────────────────────────┐
+│ Item       │ Value                                                     │
+├────────────┼───────────────────────────────────────────────────────────┤
+│ Host       │ pino.home (ssh pi@pino.home)                              │
+│ Board      │ Raspberry Pi 3 Model A+                                   │
+│ OS         │ Raspbian 12 (bookworm), kernel 5.10.103-v7+               │
+│ Boot files │ /boot/config.txt, /boot/cmdline.txt (not /boot/firmware)  │
+│ Desktop    │ None (headless, no X or Wayland installed)                │
+│ Network    │ USB Ethernet (r8152); disable-wifi and disable-bt are set │
+└────────────┴───────────────────────────────────────────────────────────┘
+```
 
 The screen box is labeled "Driver: ILI9486". No vendor documentation was found
 for the name "SuziePi", so the configuration is based on the standard
@@ -20,18 +39,25 @@ Waveshare-style 3.5" ILI9486 + XPT2046 boards.
 
 ## Result
 
-| Function | Device        | Notes                                           |
-|----------|---------------|-------------------------------------------------|
-| Display  | `/dev/fb1`    | `fb_ili9486`, 480x320, RGB565 (16 bpp), 16 MHz SPI, rotated 90 |
-| Touch    | `/dev/input/event0` | "ADS7846 Touchscreen" (XPT2046), SPI CS1, IRQ on GPIO17 |
-| Console  | HDMI (`fb0`, `tty1`) | Deliberately NOT moved to the touch screen. `fb1` is free for a standalone app. |
+```
+┌──────────┬───────────────────┬───────────────────────────────────────────────────────────────────┐
+│ Function │ Device            │ Notes                                                             │
+├──────────┼───────────────────┼───────────────────────────────────────────────────────────────────┤
+│ Display  │ /dev/fb1          │ fb_ili9486, 480x320, RGB565 (16 bpp), 16 MHz SPI, rotated 90      │
+├──────────┼───────────────────┼───────────────────────────────────────────────────────────────────┤
+│ Touch    │ /dev/input/event0 │ ADS7846 Touchscreen (XPT2046), SPI CS1, IRQ on GPIO17             │
+├──────────┼───────────────────┼───────────────────────────────────────────────────────────────────┤
+│ Console  │ HDMI (fb0, tty1)  │ Deliberately not moved to the touch screen, so fb1 is free for a  │
+│          │                   │ standalone app                                                    │
+└──────────┴───────────────────┴───────────────────────────────────────────────────────────────────┘
+```
 
 Pin usage (standard for this board type): SPI0 (GPIO 7-11), display DC = GPIO24,
 display reset = GPIO25, touch pen-down IRQ = GPIO17.
 
 ## What was changed on the Pi
 
-### `/boot/config.txt`
+### /boot/config.txt
 
 Appended at the end:
 
@@ -43,17 +69,17 @@ dtoverlay=piscreen-suzie,speed=16000000,rotate=90
 `dtparam=spi=on` was already present. The original file is saved as
 `/boot/config.txt.bak-suziepi`.
 
-### `/boot/cmdline.txt`
+### /boot/cmdline.txt
 
-Unchanged from the original (a temporary `fbcon=map:10` was added during testing
-and then removed, because the console must stay on HDMI). Backup:
+Unchanged from the original. A temporary `fbcon=map:10` was added during testing
+and then removed, because the console must stay on HDMI. Backup:
 `/boot/cmdline.txt.bak-suziepi`.
 
-### `/boot/overlays/piscreen-suzie.dtbo`
+### /boot/overlays/piscreen-suzie.dtbo
 
-A custom overlay, made as a copy of the stock `piscreen` overlay (same
-ILI9486 init sequence as the Waveshare 3.5" board) with extra touch properties
-added to the `ads7846` node:
+A custom overlay, made as a copy of the stock `piscreen` overlay (same ILI9486
+init sequence as the Waveshare 3.5" board) with extra touch properties added to
+the `ads7846` node:
 
 ```
 ti,x-min = /bits/ 16 <346>;
@@ -70,8 +96,8 @@ empirically with the corner calibration below, not derived from theory.
 
 The overlay source and build files are in this directory (`piscreen-suzie.dts`,
 `piscreen-suzie.dtbo`, `calibration.txt`, `calib.py`) and on the Pi in
-`~/suziepi/`. In the decompiled `.dts` the values show as hex byte arrays
-(`[01 5a]` = 346, `[0f 18]` = 3864, `[00 ac]` = 172, `[0f 38]` = 3896).
+`~/suziepi/`. In the decompiled `.dts` the values show as hex byte arrays (`[01
+5a]` = 346, `[0f 18]` = 3864, `[00 ac]` = 172, `[0f 38]` = 3896).
 
 To rebuild it:
 
@@ -91,15 +117,15 @@ dmesg | grep -E "fb1|ads7846"
 cat /sys/class/graphics/fb1/name
 
 # Fill the screen red (RGB565 little endian 0xF800)
-python3 -c "open('/dev/fb1','wb').write((0xF800).to_bytes(2,'little')*(480*320))"
+python3 -c "open('/dev/fb1','wb').write(b'\x00\xf8' * (480 * 320))"
 
 # Touch events
 sudo cat /dev/input/event0 | xxd | head
 ```
 
-Note: the touch device node can change between boots if other input devices are
-added. Look it up by name (`/proc/bus/input/devices`, "ADS7846 Touchscreen") or
-via `/dev/input/by-path/`.
+The touch device node can change between boots if other input devices are added.
+Look it up by name (`/proc/bus/input/devices`, "ADS7846 Touchscreen") or via
+`/dev/input/by-path/`. The apps in `apps/` do this.
 
 ## Touch calibration
 
@@ -117,36 +143,35 @@ ABS_X = 7.74  * x_px - 36        x_px = (ABS_X + 36)  / 7.74
 ABS_Y = 11.14 * y_px + 280       y_px = (ABS_Y - 280) / 11.14
 ```
 
-Using the plain range scaling (`x = ABS_X / 3724 * 480`,
-`y = (ABS_Y - 346) / 3518 * 320`) is off by about 5-6 px near the left and top
-edges and accurate on the right and bottom. For pixel-exact input, apply the
-fit above in the application (or add a libinput calibration matrix if the app
-uses libinput). Resistive touch also drifts a little with pressure and
-temperature, so re-run the calibration if it feels off.
+Plain range scaling (`x = ABS_X / 3724 * 480`, `y = (ABS_Y - 346) / 3518 * 320`)
+is off by about 5-6 px near the left and top edges and accurate on the right and
+bottom. For pixel-exact input, apply the fit above in the application, or pass
+the screen-edge values to LVGL as the apps in `apps/` do. Resistive touch also
+drifts a little with pressure and temperature, so re-run the calibration if it
+feels off.
 
-A calibration script (draws a crosshair per corner on `/dev/fb1`, averages the
-raw taps, prints JSON) is `calib.py` in this directory (copy it to the Pi, e.g. `/tmp/calib.py`). It reads
-`/dev/input/event0` and writes `/dev/fb1` directly and needs `sudo`.
+`calib.py` draws a crosshair per corner on `/dev/fb1`, averages the raw taps and
+prints JSON. It reads `/dev/input/event0` and writes `/dev/fb1` directly, so run
+it on the Pi with `sudo`, with the clock service stopped.
 
-## Troubleshooting log (what was tried)
+## Troubleshooting log
 
-1. First boot with `dtoverlay=piscreen,speed=16000000,rotate=90`: driver loaded
-   without errors, but the screen stayed black and touch was silent. SPI speed
-   was lowered to 8 MHz with no change.
-2. The cause was the board not making full contact on the 40-pin header.
-   After reseating it and a full power cycle, the display and touch both worked.
-   If the screen is white/black and `dmesg` still shows a clean driver load,
-   reseat the board first.
-3. Speed was then raised back to 16 MHz and the custom touch overlay was built.
+- First boot with `dtoverlay=piscreen,speed=16000000,rotate=90`: the driver
+  loaded without errors, but the screen stayed black and touch was silent.
+  Lowering the SPI speed to 8 MHz changed nothing.
+- The cause was the board not making full contact on the 40-pin header. After
+  reseating it and a full power cycle, display and touch both worked. If the
+  screen is white or black and `dmesg` shows a clean driver load, reseat the
+  board first.
+- The speed went back to 16 MHz and the custom touch overlay was built.
 
-## Notes for the standalone app
+## Apps
 
-- Draw to `/dev/fb1` (480x320, 16 bpp RGB565, little endian). Writes are flushed
-  by the fbtft driver at about 30 fps.
-- Read touch from the "ADS7846 Touchscreen" evdev node.
-- Nothing needs to be disabled on the console: it is on HDMI, so the app and the
-  console do not fight over the framebuffer.
-- Run the app as a user in the `video` and `input` groups, or as root.
+`apps/` holds the LVGL apps (digital clock, hello-touch demo), the shared
+`suzie_platform` library and a Python drawing demo. They draw to `/dev/fb1` and
+read the touch device by name, so nothing needs to be disabled on the console.
+The clock can start at boot through a systemd service. Build and install
+instructions are in `apps/README.md` and `apps/clock/README.md`.
 
 ## Undo
 
@@ -156,3 +181,6 @@ sudo cp /boot/cmdline.txt.bak-suziepi /boot/cmdline.txt
 sudo rm /boot/overlays/piscreen-suzie.dtbo
 sudo reboot
 ```
+
+If the clock service is installed, also run `apps/clock/scripts/service.sh
+uninstall`.
