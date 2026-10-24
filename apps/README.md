@@ -12,7 +12,7 @@ the hardware setup.
 ├───────────────────┼─────────────────────────────────────────────────────────────────────────────┤
 │ platform/         │ suzie_platform library: display, touch, calibration, main loop, Exit button │
 │ clock/            │ Digital clock; runs at boot via systemd (see its README)                    │
-│ komaro-digest/    │ Shows the latest KOMARO InfluxDB sensor values; two pages (see its README)  │
+│ komaro-digest/    │ Latest KOMARO InfluxDB sensor values and a clock; 3 pages (see its README)  │
 │ lvgl-hello-meson/ │ Hello-touch demo built on platform/                                         │
 │ lvgl-hello/       │ The same demo built with CMake, with its own copy of the glue (legacy)      │
 │ touchdraw.py      │ Python drawing demo, no build needed                                        │

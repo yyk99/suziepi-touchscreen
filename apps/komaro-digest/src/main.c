@@ -2,6 +2,7 @@
  * komaro-digest: shows the latest InfluxDB sensor values on the SuziePi screen.
  *
  *   Current page  the latest values of the selected sensor
+ *   Clock page    HH:MM and the date, like the clock app
  *   Sensors page  the list of sensors (InfluxDB measurements) to pick from and
  *                 the C/F switch; both choices are remembered
  *
@@ -19,6 +20,10 @@
 #include <time.h>
 
 #define STALE_SECONDS (15 * 60)
+#define TIME_FONT_PX 140 /* "HH:MM" is about 3 em wide: 140 px -> ~420 px */
+
+extern const uint8_t digits_font_ttf[];
+extern const size_t digits_font_ttf_len;
 
 static lv_obj_t *tabview;
 static lv_obj_t *sensor_label;
@@ -29,9 +34,13 @@ static lv_obj_t *other_label;
 static lv_obj_t *status_label;
 static lv_obj_t *sensor_list;
 static lv_obj_t *unit_switch;
+static lv_obj_t *clock_label;
+static lv_obj_t *date_label;
 
 static char unit = 'C';       /* shown large on the Current page */
 static char sensor_name[INFLUX_NAME_LEN];
+
+enum { TAB_CURRENT, TAB_SENSORS, TAB_CLOCK };
 
 static unsigned shown_version = (unsigned)-1;
 static influx_names_t shown_names;
@@ -46,7 +55,7 @@ static void list_select_cb(lv_event_t *e)
     snprintf(sensor_name, sizeof(sensor_name), "%s", name);
     model_select(name);
     config_save_state(sensor_name, unit);
-    lv_tabview_set_active(tabview, 0, LV_ANIM_ON);
+    lv_tabview_set_active(tabview, TAB_CURRENT, LV_ANIM_ON);
 }
 
 static void unit_switch_cb(lv_event_t *e)
@@ -60,7 +69,7 @@ static void unit_switch_cb(lv_event_t *e)
 static void tab_changed_cb(lv_event_t *e)
 {
     (void)e;
-    if (lv_tabview_get_tab_active(tabview) == 1)
+    if (lv_tabview_get_tab_active(tabview) == TAB_SENSORS)
         model_refresh(); /* fresh list of sensors when the page is opened */
 }
 
@@ -189,6 +198,24 @@ static void poll_cb(lv_timer_t *timer)
     update_status(&s); /* the age of the reading changes with time */
 }
 
+static void clock_cb(lv_timer_t *timer)
+{
+    static int last_min = -1;
+    time_t now = time(NULL);
+    struct tm tm;
+    char buf[48];
+    (void)timer;
+
+    localtime_r(&now, &tm);
+    if (tm.tm_min == last_min)
+        return;
+    last_min = tm.tm_min;
+    strftime(buf, sizeof(buf), "%H:%M", &tm);
+    lv_label_set_text(clock_label, buf);
+    strftime(buf, sizeof(buf), "%A, %B %d %Y", &tm);
+    lv_label_set_text(date_label, buf);
+}
+
 static lv_obj_t *make_label(lv_obj_t *parent, const lv_font_t *font, lv_color_t color)
 {
     lv_obj_t *l = lv_label_create(parent);
@@ -211,6 +238,7 @@ static void build_ui(void)
 
     lv_obj_t *cur = lv_tabview_add_tab(tabview, "Current");
     lv_obj_t *sens = lv_tabview_add_tab(tabview, "Sensors");
+    lv_obj_t *clk = lv_tabview_add_tab(tabview, "Clock");
     lv_obj_set_scrollbar_mode(cur, LV_SCROLLBAR_MODE_OFF);
     lv_obj_remove_flag(cur, LV_OBJ_FLAG_SCROLLABLE);
 
@@ -230,6 +258,18 @@ static void build_ui(void)
 
     status_label = make_label(cur, &lv_font_montserrat_14, lv_color_hex(0x909090));
     lv_obj_align(status_label, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+
+    /* Clock page */
+    lv_obj_set_style_pad_all(clk, 0, 0);
+    lv_obj_remove_flag(clk, LV_OBJ_FLAG_SCROLLABLE);
+    clock_label = make_label(clk, &lv_font_montserrat_48, lv_color_hex(0x40FF80));
+    lv_font_t *time_font = lv_tiny_ttf_create_data(digits_font_ttf, digits_font_ttf_len,
+                                                   TIME_FONT_PX);
+    if (time_font)
+        lv_obj_set_style_text_font(clock_label, time_font, 0);
+    lv_obj_align(clock_label, LV_ALIGN_CENTER, 0, -10);
+    date_label = make_label(clk, &lv_font_montserrat_20, lv_color_hex(0xA0A0A0));
+    lv_obj_align(date_label, LV_ALIGN_BOTTOM_MID, 0, -6);
 
     /* Sensors page: the Exit button covers the top-right corner, so the list
      * starts below it. */
@@ -257,6 +297,8 @@ static void build_ui(void)
 
     suzie_exit_button(scr);
     lv_timer_create(poll_cb, 500, NULL);
+    lv_timer_create(clock_cb, 500, NULL);
+    clock_cb(NULL);
 }
 
 static void usage(const char *prog)
