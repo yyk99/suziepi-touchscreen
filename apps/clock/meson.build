@@ -20,7 +20,3 @@ lvgl_dep = dependency('lvgl', fallback : ['lvgl', 'lvgl_dep'])
 clock = executable('clock', 'src/main.c', 'src/digits_font.c',
   dependencies : lvgl_dep,
   install : true)
-
-# `meson compile -C <builddir> deploy` copies the binary to the Pi.
-run_target('deploy',
-  command : [files('scripts/deploy.sh'), clock])

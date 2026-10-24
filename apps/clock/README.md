@@ -1,10 +1,11 @@
 # clock
 
 Digital clock for the SuziePi 3.5" screen (LVGL 9, fbdev + evdev). Shows
-`HH:MM:SS` and the date in the Pi's local time zone, with an **Exit** button.
-Built with **meson**, cross-compiled on the host and copied to the Pi.
+`HH:MM` and the date in the Pi's local time zone, with an **Exit** button.
+Built with **meson**, cross-compiled on a development host and copied to the Pi.
+The scripts in `scripts/` are meant to be run **on the Pi** (no ssh).
 
-## Host requirements
+## Host requirements (build machine)
 
 ```sh
 sudo apt install meson ninja-build gcc-arm-linux-gnueabihf
@@ -13,37 +14,40 @@ sudo apt install meson ninja-build gcc-arm-linux-gnueabihf
 (`pip install meson` also works.) The first configure downloads LVGL v9.2.2
 into `subprojects/lvgl/` (needs network and `git`).
 
-## Build and deploy
+## Build (on the build machine)
 
 ```sh
 cd apps/clock
 meson setup build-arm --cross-file cross/pi3.ini
 meson compile -C build-arm            # -> build-arm/clock (static ARM binary)
-meson compile -C build-arm deploy     # scp to pi@pino.home:/home/pi/bin/
 ```
 
-Another destination: `DEPLOY_DEST=pi@host:/some/dir/ meson compile -C build-arm deploy`.
+Get `build-arm/clock` and this `apps/clock` directory (or a git checkout of the
+repo) onto the Pi by any means you like (git, scp, USB stick).
 
-## Run (on the Pi)
+## Install and run (on the Pi)
 
 ```sh
-sudo /home/pi/bin/clock
-sudo /home/pi/bin/clock -f /dev/fb1 -t /dev/input/event0   # explicit devices
+cd apps/clock
+scripts/install.sh path/to/clock       # copies to ~/bin/clock, restarts the service if running
+~/bin/clock                            # run in the foreground
+~/bin/clock -f /dev/fb1 -t /dev/input/event0   # explicit devices
 ```
 
-Or in one go from the host: `ssh pi@pino.home 'sudo /home/pi/bin/clock'`.
-Stop with the on-screen Exit button or Ctrl-C. The harmless message
+`install.sh [binary] [dest-dir]` defaults to `./clock` and `$HOME/bin`. The `pi`
+user is in the `video` and `input` groups, so no sudo is needed (otherwise run
+with sudo). Stop with the on-screen Exit button or Ctrl-C. The harmless message
 `ioctl(FBIOBLANK): Invalid argument` comes from fbtft not supporting blanking.
 
 ## Start at boot (systemd)
 
 `systemd/clock.service` runs `/home/pi/bin/clock` as user `pi` (groups `video`
 and `input`, so no root needed) at boot. It restarts after a crash but not
-after the on-screen Exit button. Deploy the binary first (see above), then use
-the helper script from the host:
+after the on-screen Exit button. Install the binary first (see above), then use
+the helper script on the Pi:
 
 ```sh
-scripts/service.sh install     # copy the unit to the Pi (does not enable it)
+scripts/service.sh install     # copy the unit to /etc/systemd/system (does not enable it)
 scripts/service.sh enable      # start now and at every boot
 scripts/service.sh disable     # stop now and do not start at boot
 scripts/service.sh status      # show service state
@@ -51,18 +55,18 @@ scripts/service.sh logs        # last 50 journal lines
 scripts/service.sh uninstall   # disable and remove the unit
 ```
 
-`start`, `stop` and `restart` also work. A different Pi:
-`scripts/service.sh enable user@host` (or set `DEPLOY_HOST`).
+`start`, `stop` and `restart` also work. The script uses `sudo` for the
+systemd commands.
 
-The same thing by hand on the Pi:
+The same thing by hand:
 
 ```sh
-sudo cp clock.service /etc/systemd/system/ && sudo systemctl daemon-reload
+sudo cp systemd/clock.service /etc/systemd/system/ && sudo systemctl daemon-reload
 sudo systemctl enable --now clock.service    # enable at boot, start now
 sudo systemctl disable --now clock.service   # disable at boot, stop now
 ```
 
-After deploying a new binary, run `scripts/service.sh restart`. While the
+`scripts/install.sh` restarts a running service itself. While the
 service runs, a manual `clock` run would compete for the screen, so stop the
 service first (`scripts/service.sh stop`). The console on HDMI is unaffected.
 
