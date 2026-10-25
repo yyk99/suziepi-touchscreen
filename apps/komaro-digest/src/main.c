@@ -335,6 +335,7 @@ int main(int argc, char **argv)
     }
 
     config_load(&cfg, argc, argv);
+    suzie_set_default_zoom(cfg.zoom); /* -z on the command line still wins */
     if (suzie_init(argc, argv) != 0)
         return 1;
 

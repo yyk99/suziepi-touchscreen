@@ -65,6 +65,14 @@ static void on_signal(int sig)
     quit_requested = 1;
 }
 
+static int default_zoom = DEFAULT_ZOOM;
+
+void suzie_set_default_zoom(int zoom)
+{
+    if (zoom >= 1 && zoom <= MAX_ZOOM)
+        default_zoom = zoom;
+}
+
 #if LV_USE_SDL
 static void display_deleted_cb(lv_event_t *e)
 {
@@ -74,7 +82,7 @@ static void display_deleted_cb(lv_event_t *e)
 
 int suzie_init(int argc, char **argv)
 {
-    int zoom = DEFAULT_ZOOM;
+    int zoom = default_zoom;
 
     for (int i = 1; i + 1 < argc; i += 2) {
         if (strcmp(argv[i], "-z") == 0) {

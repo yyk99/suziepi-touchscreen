@@ -53,7 +53,7 @@ apps/clock/scripts/service.sh stop
 │ -u C|F  │ Unit of the large temperature                 │ last choice, else C      │
 │ -r secs │ Seconds between re-reads of the data (min 5)  │ 180                      │
 │ -f, -t  │ Framebuffer and touch device (suzie_platform) │ fb1, ADS7846             │
-│ -z N    │ Window zoom 1 to 8 (desktop SDL build only)   │ 2                        │
+│ -z N    │ Window zoom 1 to 8 (desktop SDL build only)   │ zoom= in config, else 2  │
 │ -h      │ Print this list of options and exit           │                          │
 └─────────┴───────────────────────────────────────────────┴──────────────────────────┘
 ```
@@ -105,7 +105,7 @@ and both are optional.
 ┌──────────┬────────────────────────────────────────────────────────────────────────┐
 │ File     │ Content                                                                │
 ├──────────┼────────────────────────────────────────────────────────────────────────┤
-│ config   │ Written by hand: host=, port=, db=, refresh= lines (# = comment)       │
+│ config   │ Written by hand: host=, port=, db=, refresh=, zoom= lines (# = comment)│
 │ state    │ sensor=... and unit=C or F, as set on the Sensors page. Written by app │
 └──────────┴────────────────────────────────────────────────────────────────────────┘
 ```

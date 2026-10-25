@@ -67,6 +67,8 @@ static void read_config_file(const char *path, app_config_t *cfg)
             snprintf(cfg->conn.db, sizeof(cfg->conn.db), "%s", val);
         else if (strcmp(line, "refresh") == 0)
             cfg->refresh_s = parse_refresh(val, cfg->refresh_s);
+        else if (strcmp(line, "zoom") == 0)
+            cfg->zoom = atoi(val);
         else if (strcmp(line, "sensor") == 0)
             snprintf(cfg->sensor, sizeof(cfg->sensor), "%s", val);
         else if (strcmp(line, "unit") == 0)

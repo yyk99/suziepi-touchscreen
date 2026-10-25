@@ -30,6 +30,11 @@ extern "C" {
  * suzie_run() cleanly. Returns 0 on success, -1 (after printing why) on error. */
 int suzie_init(int argc, char **argv);
 
+/* SDL builds: the window zoom (1..8) used when "-z" is not given, e.g. from a
+ * config file. Call before suzie_init(). Out of range values are ignored; has
+ * no effect without SDL. */
+void suzie_set_default_zoom(int zoom);
+
 /* Run the LVGL main loop until suzie_request_quit() or SIGINT/SIGTERM, then
  * blank the screen so the last frame does not stay on the panel. */
 void suzie_run(void);

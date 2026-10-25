@@ -1,6 +1,7 @@
 /*
  * Settings live in $XDG_CONFIG_HOME/komaro-digest/ (default ~/.config/...):
- *   config    optional, written by hand:  host=..., port=..., db=..., refresh=...
+ *   config    optional, written by hand:  host=..., port=..., db=..., refresh=...,
+ *             zoom=1..8 (SDL window size, desktop build only)
  *   state     written by the app: sensor=<name> and unit=C|F, the choices made on
  *             the Sensors page
  */
@@ -14,6 +15,7 @@ typedef struct {
     char sensor[INFLUX_NAME_LEN]; /* empty = not chosen yet */
     int refresh_s;                /* seconds between re-reads of the data */
     char unit;                    /* 'C' or 'F': the temperature shown large */
+    int zoom;                     /* SDL window zoom from the config file; 0 = not set */
 } app_config_t;
 
 /* Defaults, then the files, then command line options:
