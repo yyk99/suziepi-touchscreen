@@ -3,7 +3,7 @@
  *   config    optional, written by hand:  host=..., port=..., db=..., refresh=...,
  *             zoom=1..8 (SDL window size, desktop build only)
  *   state     written by the app: sensor=<name>, unit=C|F and autorotate=0|1, the
- *             choices made on the Sensors page
+ *             choices made on the Sensors and Options pages
  */
 #ifndef CONFIG_H
 #define CONFIG_H
