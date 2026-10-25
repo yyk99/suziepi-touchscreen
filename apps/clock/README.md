@@ -42,6 +42,12 @@ user is in the `video` and `input` groups, so no sudo is needed (otherwise run
 with sudo). Stop with the on-screen Exit button or Ctrl-C. The harmless message
 `ioctl(FBIOBLANK): Invalid argument` comes from fbtft not supporting blanking.
 
+## Settings file
+
+`~/.config/clock/config` (or `$XDG_CONFIG_HOME/clock/config`) is optional. It
+has one key, `zoom=1..8`, the window zoom of the desktop SDL build (default 2).
+`-z` on the command line wins. It has no effect on the Pi.
+
 ## Start at boot (systemd)
 
 `systemd/clock.service` runs `/home/pi/bin/clock` as user `pi` (groups `video`

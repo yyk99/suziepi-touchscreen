@@ -4,12 +4,16 @@
  *
  * Usage: ./clock [-f /dev/fb1] [-t /dev/input/eventN] [-h]
  *        ./clock [-z 1..8] [-h]                  (desktop SDL build)
+ *
+ * Optional settings file $XDG_CONFIG_HOME/clock/config (default
+ * ~/.config/clock/config): a "zoom=1..8" line sets the SDL window zoom; -z wins.
  */
 #include "suzie_platform.h"
 
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -72,13 +76,38 @@ static void usage(const char *prog)
            "Digital clock (HH:MM and the date) for the SuziePi 3.5\" screen.\n"
            "\n"
 #if LV_USE_SDL
-           "  -z N        window zoom 1..8, default 2 (desktop SDL build)\n"
+           "  -z N        window zoom 1..8, default 2 or zoom= in config (desktop SDL build)\n"
 #else
            "  -f device   framebuffer device (default /dev/fb1)\n"
            "  -t device   touch device (default: ADS7846 found by name)\n"
 #endif
            "  -h          show this help\n",
            prog);
+}
+
+/* The zoom from the settings file, 0 when there is none. */
+static int config_zoom(void)
+{
+    const char *xdg = getenv("XDG_CONFIG_HOME");
+    const char *home = getenv("HOME");
+    char path[300], line[160];
+    int zoom = 0;
+
+    if (xdg && *xdg)
+        snprintf(path, sizeof(path), "%s/clock/config", xdg);
+    else if (home && *home)
+        snprintf(path, sizeof(path), "%s/.config/clock/config", home);
+    else
+        return 0;
+
+    FILE *f = fopen(path, "r");
+    if (!f)
+        return 0;
+    while (fgets(line, sizeof(line), f))
+        if (strncmp(line, "zoom=", 5) == 0)
+            zoom = atoi(line + 5);
+    fclose(f);
+    return zoom;
 }
 
 int main(int argc, char **argv)
@@ -89,6 +118,7 @@ int main(int argc, char **argv)
             return 0;
         }
     }
+    suzie_set_default_zoom(config_zoom()); /* -z still wins */
     if (suzie_init(argc, argv) != 0)
         return 1;
     build_ui();
