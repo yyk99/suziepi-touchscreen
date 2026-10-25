@@ -20,12 +20,17 @@ Swipe sideways, or use the tabs at the bottom of the screen.
 ├─────────┼────────────────────────────────────────────────────────────────────────────────────────┤
 │ Sensors │ The InfluxDB measurements (living_room, sensor, sensor2, ...). Tap one to show it; the │
 │         │ app returns to the Current page and remembers the choice. The list is re-read each     │
-│         │ time the page is opened. The C/F switch at the top picks the unit of the large         │
-│         │ temperature (also remembered).                                                         │
+│         │ time the page is opened.                                                               │
 ├─────────┼────────────────────────────────────────────────────────────────────────────────────────┤
 │ Clock   │ The time as HH:MM in the Pi's time zone and the date, like the clock app.              │
+├─────────┼────────────────────────────────────────────────────────────────────────────────────────┤
+│ Options │ The C/F switch picks the unit of the large temperature. The Auto rotate switch makes   │
+│         │ the Current page step to the next sensor every 5 seconds. Both are remembered.         │
 └─────────┴────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+The pages are switched with the buttons along the bottom of the screen: Home
+(the Current page), Previous and Next (the pages wrap around).
 
 A measurement without a `temperature_c` field is shown as a plain list of its
 first fields. The red Exit button in the corner ends the program.
@@ -108,7 +113,7 @@ and both are optional.
 │ File     │ Content                                                                │
 ├──────────┼────────────────────────────────────────────────────────────────────────┤
 │ config   │ Written by hand: host=, port=, db=, refresh=, zoom= lines (# = comment)│
-│ state    │ sensor=... and unit=C or F, as set on the Sensors page. Written by app │
+│ state    │ sensor=..., unit=C or F, autorotate=0 or 1: set on the Options page    │
 └──────────┴────────────────────────────────────────────────────────────────────────┘
 ```
 

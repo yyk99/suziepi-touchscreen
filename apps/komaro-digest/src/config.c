@@ -69,6 +69,8 @@ static void read_config_file(const char *path, app_config_t *cfg)
             cfg->refresh_s = parse_refresh(val, cfg->refresh_s);
         else if (strcmp(line, "zoom") == 0)
             cfg->zoom = atoi(val);
+        else if (strcmp(line, "autorotate") == 0)
+            cfg->autorotate = atoi(val) != 0;
         else if (strcmp(line, "sensor") == 0)
             snprintf(cfg->sensor, sizeof(cfg->sensor), "%s", val);
         else if (strcmp(line, "unit") == 0)
@@ -113,7 +115,7 @@ void config_load(app_config_t *cfg, int argc, char **argv)
     }
 }
 
-void config_save_state(const char *sensor, char unit)
+void config_save_state(const char *sensor, char unit, int autorotate)
 {
     char dir[200], path[260], parent[200];
 
@@ -131,6 +133,6 @@ void config_save_state(const char *sensor, char unit)
     FILE *f = fopen(path, "w");
     if (!f)
         return;
-    fprintf(f, "sensor=%s\nunit=%c\n", sensor, unit);
+    fprintf(f, "sensor=%s\nunit=%c\nautorotate=%d\n", sensor, unit, autorotate ? 1 : 0);
     fclose(f);
 }

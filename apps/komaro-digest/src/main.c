@@ -3,8 +3,11 @@
  *
  *   Current page  the latest values of the selected sensor
  *   Clock page    HH:MM and the date, like the clock app
- *   Sensors page  the list of sensors (InfluxDB measurements) to pick from and
- *                 the C/F switch; both choices are remembered
+ *   Sensors page  the list of sensors (InfluxDB measurements) to pick from
+ *   Options page  the C/F and auto-rotate switches
+ *
+ * The pages are switched with the buttons along the bottom: Home (Current page),
+ * Previous and Next. All choices are remembered.
  *
  * Usage: ./komaro-digest [-H host] [-P port] [-d database] [-s sensor] [-u C|F]
  *                        [-r seconds] [-h]
@@ -20,6 +23,8 @@
 #include <time.h>
 
 #define STALE_SECONDS (15 * 60)
+#define NAV_BAR_PX 40
+#define ROTATE_PERIOD_MS (5 * 1000) /* autorotate: time per sensor */
 #define TIME_FONT_PX 140 /* "HH:MM" is about 3 em wide: 140 px -> ~420 px */
 
 extern const uint8_t digits_font_ttf[];
@@ -34,13 +39,16 @@ static lv_obj_t *other_label;
 static lv_obj_t *status_label;
 static lv_obj_t *sensor_list;
 static lv_obj_t *unit_switch;
+static lv_obj_t *rotate_switch;
+static lv_timer_t *rotate_timer;
 static lv_obj_t *clock_label;
 static lv_obj_t *date_label;
 
 static char unit = 'C';       /* shown large on the Current page */
+static int autorotate;        /* 1 = Current page steps through the sensors */
 static char sensor_name[INFLUX_NAME_LEN];
 
-enum { TAB_CURRENT, TAB_SENSORS, TAB_CLOCK };
+enum { TAB_CURRENT, TAB_SENSORS, TAB_CLOCK, TAB_OPTIONS, TAB_COUNT };
 
 static unsigned shown_version = (unsigned)-1;
 static influx_names_t shown_names;
@@ -54,7 +62,8 @@ static void list_select_cb(lv_event_t *e)
         return;
     snprintf(sensor_name, sizeof(sensor_name), "%s", name);
     model_select(name);
-    config_save_state(sensor_name, unit);
+    config_save_state(sensor_name, unit, autorotate);
+    lv_timer_reset(rotate_timer); /* the chosen sensor gets a full period */
     lv_tabview_set_active(tabview, TAB_CURRENT, LV_ANIM_ON);
 }
 
@@ -63,7 +72,65 @@ static void unit_switch_cb(lv_event_t *e)
     (void)e;
     unit = lv_obj_has_state(unit_switch, LV_STATE_CHECKED) ? 'F' : 'C';
     shown_version = (unsigned)-1; /* redraw the values in the new unit */
-    config_save_state(sensor_name, unit);
+    config_save_state(sensor_name, unit, autorotate);
+}
+
+static void rotate_switch_cb(lv_event_t *e)
+{
+    (void)e;
+    autorotate = lv_obj_has_state(rotate_switch, LV_STATE_CHECKED);
+    lv_timer_reset(rotate_timer);
+    config_save_state(sensor_name, unit, autorotate);
+}
+
+/* Every ROTATE_PERIOD_MS, while the Current page is open, move on to the next
+ * sensor in the list (wrapping around). */
+static void rotate_cb(lv_timer_t *timer)
+{
+    (void)timer;
+    if (!autorotate || lv_tabview_get_tab_active(tabview) != TAB_CURRENT)
+        return;
+    if (shown_names.count < 2)
+        return;
+
+    int cur = -1;
+    for (int i = 0; i < shown_names.count; i++) {
+        if (strcmp(shown_names.name[i], sensor_name) == 0) {
+            cur = i;
+            break;
+        }
+    }
+    const char *next = shown_names.name[(cur + 1) % shown_names.count];
+
+    snprintf(sensor_name, sizeof(sensor_name), "%s", next);
+    model_select(next);
+    config_save_state(sensor_name, unit, autorotate);
+}
+
+static void tab_changed_cb(lv_event_t *e);
+
+static void nav_cb(lv_event_t *e)
+{
+    int step = (int)(intptr_t)lv_event_get_user_data(e);
+    int tab = TAB_CURRENT;
+
+    if (step != 0) {
+        tab = ((int)lv_tabview_get_tab_active(tabview) + step + TAB_COUNT) % TAB_COUNT;
+    }
+    lv_tabview_set_active(tabview, (uint32_t)tab, LV_ANIM_OFF);
+    tab_changed_cb(NULL);
+}
+
+static lv_obj_t *make_nav_button(lv_obj_t *bar, const char *text, int step)
+{
+    lv_obj_t *btn = lv_button_create(bar);
+    lv_obj_set_height(btn, lv_pct(100));
+    lv_obj_set_flex_grow(btn, 1);
+    lv_obj_add_event_cb(btn, nav_cb, LV_EVENT_CLICKED, (void *)(intptr_t)step);
+    lv_obj_t *l = lv_label_create(btn);
+    lv_label_set_text(l, text);
+    lv_obj_center(l);
+    return btn;
 }
 
 static void tab_changed_cb(lv_event_t *e)
@@ -231,14 +298,17 @@ static void build_ui(void)
 
     lv_obj_set_style_bg_color(scr, lv_color_hex(0x101820), 0);
     tabview = lv_tabview_create(scr);
-    lv_tabview_set_tab_bar_position(tabview, LV_DIR_BOTTOM);
-    lv_tabview_set_tab_bar_size(tabview, 40);
+    lv_obj_set_size(tabview, lv_pct(100), lv_display_get_vertical_resolution(NULL) - NAV_BAR_PX);
+    lv_obj_align(tabview, LV_ALIGN_TOP_LEFT, 0, 0);
+    lv_tabview_set_tab_bar_size(tabview, 0); /* pages are switched by the nav bar */
+    lv_obj_add_flag(lv_tabview_get_tab_bar(tabview), LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_bg_color(tabview, lv_color_hex(0x101820), 0);
     lv_obj_add_event_cb(tabview, tab_changed_cb, LV_EVENT_VALUE_CHANGED, NULL);
 
     lv_obj_t *cur = lv_tabview_add_tab(tabview, "Current");
     lv_obj_t *sens = lv_tabview_add_tab(tabview, "Sensors");
     lv_obj_t *clk = lv_tabview_add_tab(tabview, "Clock");
+    lv_obj_t *opt = lv_tabview_add_tab(tabview, "Options");
     lv_obj_set_scrollbar_mode(cur, LV_SCROLLBAR_MODE_OFF);
     lv_obj_remove_flag(cur, LV_OBJ_FLAG_SCROLLABLE);
 
@@ -278,24 +348,60 @@ static void build_ui(void)
     lv_label_set_text(title, "Select a sensor");
     lv_obj_align(title, LV_ALIGN_TOP_LEFT, 8, 8);
 
-    /* C [switch] F, left of the Exit button */
-    lv_obj_t *c_lbl = make_label(sens, &lv_font_montserrat_20, white);
-    lv_label_set_text(c_lbl, "C");
-    lv_obj_align(c_lbl, LV_ALIGN_TOP_LEFT, 238, 8);
-    unit_switch = lv_switch_create(sens);
-    lv_obj_set_size(unit_switch, 56, 28);
-    lv_obj_align(unit_switch, LV_ALIGN_TOP_LEFT, 266, 8);
-    if (unit == 'F')
-        lv_obj_add_state(unit_switch, LV_STATE_CHECKED);
-    lv_obj_add_event_cb(unit_switch, unit_switch_cb, LV_EVENT_VALUE_CHANGED, NULL);
-    lv_obj_t *f_lbl = make_label(sens, &lv_font_montserrat_20, white);
-    lv_label_set_text(f_lbl, "F");
-    lv_obj_align(f_lbl, LV_ALIGN_TOP_LEFT, 332, 8);
     sensor_list = lv_list_create(sens);
     lv_obj_set_size(sensor_list, lv_pct(100), 190);
     lv_obj_align(sensor_list, LV_ALIGN_TOP_LEFT, 0, 44);
 
+    /* Options page */
+    lv_obj_set_style_pad_all(opt, 0, 0);
+    lv_obj_t *opt_title = make_label(opt, &lv_font_montserrat_20, white);
+    lv_label_set_text(opt_title, "Options");
+    lv_obj_align(opt_title, LV_ALIGN_TOP_LEFT, 8, 8);
+
+    lv_obj_t *u_lbl = make_label(opt, &lv_font_montserrat_20, white);
+    lv_label_set_text(u_lbl, "Temperature unit");
+    lv_obj_align(u_lbl, LV_ALIGN_TOP_LEFT, 8, 64);
+    /* C [switch] F */
+    lv_obj_t *c_lbl = make_label(opt, &lv_font_montserrat_20, white);
+    lv_label_set_text(c_lbl, "C");
+    lv_obj_align(c_lbl, LV_ALIGN_TOP_LEFT, 280, 64);
+    unit_switch = lv_switch_create(opt);
+    lv_obj_set_size(unit_switch, 56, 28);
+    lv_obj_align(unit_switch, LV_ALIGN_TOP_LEFT, 308, 62);
+    if (unit == 'F')
+        lv_obj_add_state(unit_switch, LV_STATE_CHECKED);
+    lv_obj_add_event_cb(unit_switch, unit_switch_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_t *f_lbl = make_label(opt, &lv_font_montserrat_20, white);
+    lv_label_set_text(f_lbl, "F");
+    lv_obj_align(f_lbl, LV_ALIGN_TOP_LEFT, 374, 64);
+
+    lv_obj_t *r_lbl = make_label(opt, &lv_font_montserrat_20, white);
+    lv_label_set_text(r_lbl, "Auto rotate (every 5 s)");
+    lv_obj_align(r_lbl, LV_ALIGN_TOP_LEFT, 8, 124);
+    rotate_switch = lv_switch_create(opt);
+    lv_obj_set_size(rotate_switch, 56, 28);
+    lv_obj_align(rotate_switch, LV_ALIGN_TOP_LEFT, 308, 122);
+    if (autorotate)
+        lv_obj_add_state(rotate_switch, LV_STATE_CHECKED);
+    lv_obj_add_event_cb(rotate_switch, rotate_switch_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+    /* Navigation bar along the bottom */
+    lv_obj_t *nav = lv_obj_create(scr);
+    lv_obj_set_size(nav, lv_pct(100), NAV_BAR_PX);
+    lv_obj_align(nav, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_set_style_pad_all(nav, 2, 0);
+    lv_obj_set_style_pad_column(nav, 4, 0);
+    lv_obj_set_style_radius(nav, 0, 0);
+    lv_obj_set_style_border_width(nav, 0, 0);
+    lv_obj_set_style_bg_color(nav, lv_color_hex(0x101820), 0);
+    lv_obj_remove_flag(nav, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_flex_flow(nav, LV_FLEX_FLOW_ROW);
+    make_nav_button(nav, LV_SYMBOL_HOME " Home", 0);
+    make_nav_button(nav, LV_SYMBOL_LEFT " Previous", -1);
+    make_nav_button(nav, "Next " LV_SYMBOL_RIGHT, 1);
+
     suzie_exit_button(scr);
+    rotate_timer = lv_timer_create(rotate_cb, ROTATE_PERIOD_MS, NULL);
     lv_timer_create(poll_cb, 500, NULL);
     lv_timer_create(clock_cb, 500, NULL);
     clock_cb(NULL);
@@ -319,7 +425,7 @@ static void usage(const char *prog)
            "  -h          show this help\n"
            "\n"
            "Settings files in ~/.config/komaro-digest/: config (host=, port=, db=,\n"
-           "refresh=) and state (sensor=, unit=, written by the app).\n",
+           "refresh=) and state (sensor=, unit=, autorotate=, written by the app).\n",
            prog);
 }
 
@@ -344,6 +450,7 @@ int main(int argc, char **argv)
                                                      lv_palette_main(LV_PALETTE_CYAN), true,
                                                      LV_FONT_DEFAULT));
     unit = cfg.unit;
+    autorotate = cfg.autorotate;
     snprintf(sensor_name, sizeof(sensor_name), "%s", cfg.sensor);
     build_ui();
     model_start(&cfg.conn, cfg.sensor, cfg.refresh_s);
