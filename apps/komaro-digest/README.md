@@ -58,6 +58,21 @@ apps/clock/scripts/service.sh stop
 └─────────┴───────────────────────────────────────────────┴──────────────────────────┘
 ```
 
+## Install on the desktop (SDL build)
+
+A native build with SDL2 can install the program with a menu entry and icon
+(`komaro-digest.desktop`, `icons/komaro-digest.svg`). The entry runs
+`komaro-digest` from `PATH`, so use a prefix whose `bin` is on it:
+
+```sh
+cd apps
+meson setup build-native --prefix=$HOME/.local
+meson install -C build-native --tags komaro-digest   # only this app
+```
+
+Without `--tags`, `clock` and `hello` are installed too. The cross build for
+the Pi installs only the binary; use `scripts/install.sh` there.
+
 ## Start at boot (systemd)
 
 `systemd/komaro-digest.service` runs `/home/pi/bin/komaro-digest` as user `pi`

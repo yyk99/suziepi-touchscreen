@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Komaro Digest
+Comment=Latest KOMARO InfluxDB sensor values
+Exec=komaro-digest
+Icon=komaro-digest
+Categories=Utility;
+Terminal=false
