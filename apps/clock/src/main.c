@@ -2,12 +2,15 @@
  * Digital clock for the SuziePi 3.5" screen.
  * Display, touch and the main loop come from the shared suzie_platform library.
  *
- * Usage: ./clock [-f /dev/fb1] [-t /dev/input/eventN]
+ * Usage: ./clock [-f /dev/fb1] [-t /dev/input/eventN] [-h]
+ *        ./clock [-z 1..8] [-h]                  (desktop SDL build)
  */
 #include "suzie_platform.h"
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 #define TIME_FONT_PX 140 /* "HH:MM" is about 3 em wide: 140 px -> ~420 px on 480 */
@@ -62,8 +65,30 @@ static void build_ui(void)
     update_cb(NULL);
 }
 
+static void usage(const char *prog)
+{
+    printf("Usage: %s [options]\n"
+           "\n"
+           "Digital clock (HH:MM and the date) for the SuziePi 3.5\" screen.\n"
+           "\n"
+#if LV_USE_SDL
+           "  -z N        window zoom 1..8, default 2 (desktop SDL build)\n"
+#else
+           "  -f device   framebuffer device (default /dev/fb1)\n"
+           "  -t device   touch device (default: ADS7846 found by name)\n"
+#endif
+           "  -h          show this help\n",
+           prog);
+}
+
 int main(int argc, char **argv)
 {
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
+            usage(argv[0]);
+            return 0;
+        }
+    }
     if (suzie_init(argc, argv) != 0)
         return 1;
     build_ui();

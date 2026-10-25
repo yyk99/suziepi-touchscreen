@@ -42,7 +42,8 @@ build-native/clock/clock                       # opens a 480x320 window
 
 A native build with the SDL2 development files draws into a window and uses the
 mouse as the touch screen, so the apps run on the desktop without a Pi (`-f` and
-`-t` are ignored). Close the window or click Exit to quit. Without SDL2, and in
+`-t` are ignored). `-z N` magnifies the window N times (1 to 8, default 2, for
+example `build-native/clock/clock -z 3`); it exists only in the SDL build. Close the window or click Exit to quit. Without SDL2, and in
 the ARM cross build, `suzie_platform` uses `/dev/fb1` and the touch device as
 on the Pi. The SDL window does not test the fbtft driver, the touch calibration
 or the Pi's performance. The first configure downloads LVGL (needs network and

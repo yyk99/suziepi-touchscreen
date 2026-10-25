@@ -9,6 +9,8 @@
 
 #define SCREEN_W 480
 #define SCREEN_H 320
+#define DEFAULT_ZOOM 2 /* SDL window: integer magnification of the 480x320 screen */
+#define MAX_ZOOM 8
 #define DEFAULT_FB "/dev/fb1"
 
 /* Raw ABS_X/ABS_Y values at the screen edges, from the 4-corner calibration
@@ -72,8 +74,17 @@ static void display_deleted_cb(lv_event_t *e)
 
 int suzie_init(int argc, char **argv)
 {
-    (void)argc;
-    (void)argv;
+    int zoom = DEFAULT_ZOOM;
+
+    for (int i = 1; i + 1 < argc; i += 2) {
+        if (strcmp(argv[i], "-z") == 0) {
+            zoom = atoi(argv[i + 1]);
+            if (zoom < 1 || zoom > MAX_ZOOM) {
+                fprintf(stderr, "-z must be 1..%d\n", MAX_ZOOM);
+                return -1;
+            }
+        }
+    }
 
     lv_init();
     lv_tick_set_cb(tick_ms);
@@ -83,6 +94,7 @@ int suzie_init(int argc, char **argv)
         fprintf(stderr, "cannot create SDL window\n");
         return -1;
     }
+    lv_sdl_window_set_zoom(disp, (uint8_t)zoom);
     lv_display_add_event_cb(disp, display_deleted_cb, LV_EVENT_DELETE, NULL);
     lv_sdl_mouse_create();
 

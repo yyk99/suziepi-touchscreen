@@ -34,6 +34,7 @@ cd apps/clock
 scripts/install.sh path/to/clock   # copy to ~/bin/clock, restart service
 ~/bin/clock                            # run in the foreground
 ~/bin/clock -f /dev/fb1 -t /dev/input/event0   # explicit devices
+~/bin/clock -h                                 # list the options
 ```
 
 `install.sh [binary] [dest-dir]` defaults to `./clock` and `$HOME/bin`. The `pi`
@@ -80,7 +81,7 @@ service first (`scripts/service.sh stop`). The console on HDMI is unaffected.
 ```sh
 cd apps
 meson setup build-native && meson compile -C build-native
-build-native/clock/clock      # needs libsdl2-dev; the mouse acts as the touch
+build-native/clock/clock -z 3 # needs libsdl2-dev; mouse = touch, 3x window
 ```
 
 ## Design notes

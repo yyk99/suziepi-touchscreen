@@ -7,7 +7,8 @@
  *
  * Native builds with the SDL2 development files draw into a 480x320 window
  * instead and use the mouse as the touch screen (no fbdev/evdev, -f/-t are
- * ignored).
+ * ignored). "-z N" (1..8, default 2) magnifies the window N times; it exists
+ * only in SDL builds.
  *
  * Typical use:
  *     if (suzie_init(argc, argv) != 0) return 1;
@@ -24,8 +25,8 @@ extern "C" {
 #endif
 
 /* Initialise LVGL, the framebuffer display and the touch input.
- * Understands "-f <fbdev>" and "-t <evdev>" on the command line; the touch
- * node is found by name when -t is not given. Also makes SIGINT/SIGTERM end
+ * Understands "-f <fbdev>" and "-t <evdev>" on the command line (SDL builds:
+ * "-z <zoom>" instead); the touch node is found by name when -t is not given. Also makes SIGINT/SIGTERM end
  * suzie_run() cleanly. Returns 0 on success, -1 (after printing why) on error. */
 int suzie_init(int argc, char **argv);
 

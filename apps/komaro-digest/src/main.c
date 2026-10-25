@@ -315,6 +315,7 @@ static void usage(const char *prog)
            "  -r seconds  seconds between re-reads of the data, min 5 (default 180)\n"
            "  -f device   framebuffer device (default /dev/fb1)\n"
            "  -t device   touch device (default: ADS7846 found by name)\n"
+           "  -z N        SDL window zoom 1..8, default 2 (desktop build only)\n"
            "  -h          show this help\n"
            "\n"
            "Settings files in ~/.config/komaro-digest/: config (host=, port=, db=,\n"
