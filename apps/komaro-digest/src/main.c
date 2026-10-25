@@ -4,7 +4,7 @@
  *   Current page  the latest values of the selected sensor
  *   Clock page    HH:MM and the date, like the clock app
  *   Sensors page  the list of sensors (InfluxDB measurements) to pick from and
- *                 the C/F switch; both choices are remembered
+ *                 the C/F and auto-rotate switches; all choices are remembered
  *
  * Usage: ./komaro-digest [-H host] [-P port] [-d database] [-s sensor] [-u C|F]
  *                        [-r seconds] [-h]
@@ -20,6 +20,7 @@
 #include <time.h>
 
 #define STALE_SECONDS (15 * 60)
+#define ROTATE_PERIOD_MS (30 * 1000) /* autorotate: time per sensor */
 #define TIME_FONT_PX 140 /* "HH:MM" is about 3 em wide: 140 px -> ~420 px */
 
 extern const uint8_t digits_font_ttf[];
@@ -34,10 +35,13 @@ static lv_obj_t *other_label;
 static lv_obj_t *status_label;
 static lv_obj_t *sensor_list;
 static lv_obj_t *unit_switch;
+static lv_obj_t *rotate_switch;
+static lv_timer_t *rotate_timer;
 static lv_obj_t *clock_label;
 static lv_obj_t *date_label;
 
 static char unit = 'C';       /* shown large on the Current page */
+static int autorotate;        /* 1 = Current page steps through the sensors */
 static char sensor_name[INFLUX_NAME_LEN];
 
 enum { TAB_CURRENT, TAB_SENSORS, TAB_CLOCK };
@@ -54,7 +58,8 @@ static void list_select_cb(lv_event_t *e)
         return;
     snprintf(sensor_name, sizeof(sensor_name), "%s", name);
     model_select(name);
-    config_save_state(sensor_name, unit);
+    config_save_state(sensor_name, unit, autorotate);
+    lv_timer_reset(rotate_timer); /* the chosen sensor gets a full period */
     lv_tabview_set_active(tabview, TAB_CURRENT, LV_ANIM_ON);
 }
 
@@ -63,7 +68,39 @@ static void unit_switch_cb(lv_event_t *e)
     (void)e;
     unit = lv_obj_has_state(unit_switch, LV_STATE_CHECKED) ? 'F' : 'C';
     shown_version = (unsigned)-1; /* redraw the values in the new unit */
-    config_save_state(sensor_name, unit);
+    config_save_state(sensor_name, unit, autorotate);
+}
+
+static void rotate_switch_cb(lv_event_t *e)
+{
+    (void)e;
+    autorotate = lv_obj_has_state(rotate_switch, LV_STATE_CHECKED);
+    lv_timer_reset(rotate_timer);
+    config_save_state(sensor_name, unit, autorotate);
+}
+
+/* Every ROTATE_PERIOD_MS, while the Current page is open, move on to the next
+ * sensor in the list (wrapping around). */
+static void rotate_cb(lv_timer_t *timer)
+{
+    (void)timer;
+    if (!autorotate || lv_tabview_get_tab_active(tabview) != TAB_CURRENT)
+        return;
+    if (shown_names.count < 2)
+        return;
+
+    int cur = -1;
+    for (int i = 0; i < shown_names.count; i++) {
+        if (strcmp(shown_names.name[i], sensor_name) == 0) {
+            cur = i;
+            break;
+        }
+    }
+    const char *next = shown_names.name[(cur + 1) % shown_names.count];
+
+    snprintf(sensor_name, sizeof(sensor_name), "%s", next);
+    model_select(next);
+    config_save_state(sensor_name, unit, autorotate);
 }
 
 static void tab_changed_cb(lv_event_t *e)
@@ -291,11 +328,24 @@ static void build_ui(void)
     lv_obj_t *f_lbl = make_label(sens, &lv_font_montserrat_20, white);
     lv_label_set_text(f_lbl, "F");
     lv_obj_align(f_lbl, LV_ALIGN_TOP_LEFT, 332, 8);
+
+    /* Auto-rotate row */
+    lv_obj_t *r_lbl = make_label(sens, &lv_font_montserrat_20, white);
+    lv_label_set_text(r_lbl, "Rotate sensors every 30 s");
+    lv_obj_align(r_lbl, LV_ALIGN_TOP_LEFT, 8, 48);
+    rotate_switch = lv_switch_create(sens);
+    lv_obj_set_size(rotate_switch, 56, 28);
+    lv_obj_align(rotate_switch, LV_ALIGN_TOP_LEFT, 266, 46);
+    if (autorotate)
+        lv_obj_add_state(rotate_switch, LV_STATE_CHECKED);
+    lv_obj_add_event_cb(rotate_switch, rotate_switch_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
     sensor_list = lv_list_create(sens);
-    lv_obj_set_size(sensor_list, lv_pct(100), 190);
-    lv_obj_align(sensor_list, LV_ALIGN_TOP_LEFT, 0, 44);
+    lv_obj_set_size(sensor_list, lv_pct(100), 150);
+    lv_obj_align(sensor_list, LV_ALIGN_TOP_LEFT, 0, 84);
 
     suzie_exit_button(scr);
+    rotate_timer = lv_timer_create(rotate_cb, ROTATE_PERIOD_MS, NULL);
     lv_timer_create(poll_cb, 500, NULL);
     lv_timer_create(clock_cb, 500, NULL);
     clock_cb(NULL);
@@ -319,7 +369,7 @@ static void usage(const char *prog)
            "  -h          show this help\n"
            "\n"
            "Settings files in ~/.config/komaro-digest/: config (host=, port=, db=,\n"
-           "refresh=) and state (sensor=, unit=, written by the app).\n",
+           "refresh=) and state (sensor=, unit=, autorotate=, written by the app).\n",
            prog);
 }
 
@@ -344,6 +394,7 @@ int main(int argc, char **argv)
                                                      lv_palette_main(LV_PALETTE_CYAN), true,
                                                      LV_FONT_DEFAULT));
     unit = cfg.unit;
+    autorotate = cfg.autorotate;
     snprintf(sensor_name, sizeof(sensor_name), "%s", cfg.sensor);
     build_ui();
     model_start(&cfg.conn, cfg.sensor, cfg.refresh_s);
