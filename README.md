@@ -4,6 +4,8 @@ Setup notes, tools and apps for a SuziePi 3.5" SPI touch screen (480x320,
 ILI9486 display controller, XPT2046 resistive touch controller) on the Raspberry
 Pi `pino.home`.
 
+![komaro-digest running on the SuziePi screen](apps/images/komaro-digest-current.jpg)
+
 ## Repository layout
 
 ```

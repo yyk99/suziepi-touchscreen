@@ -4,6 +4,8 @@ Shows the latest sensor values from the KOMARO InfluxDB database on the SuziePi
 3.5" screen. Built on the shared `suzie_platform` library. See `~/src/komaro`
 for the pipelines that fill the database.
 
+![The Current page on the SuziePi screen](../images/komaro-digest-current.jpg)
+
 ## Pages
 
 Swipe sideways, or use the tabs at the bottom of the screen.
