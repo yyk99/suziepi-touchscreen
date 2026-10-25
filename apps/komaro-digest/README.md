@@ -21,8 +21,8 @@ Swipe sideways, or use the tabs at the bottom of the screen.
 │ Sensors │ The InfluxDB measurements (living_room, sensor, sensor2, ...). Tap one to show it; the │
 │         │ app returns to the Current page and remembers the choice. The list is re-read each     │
 │         │ time the page is opened. The C/F switch at the top picks the unit of the large         │
-│         │ temperature (also remembered). The "Rotate sensors every 30 s" switch makes the       │
-│         │ Current page step to the next sensor every 30 seconds (also remembered).               │
+│         │ temperature (also remembered). The "Rotate sensors every 5 s" switch makes the         │
+│         │ Current page step to the next sensor every 5 seconds (also remembered).                │
 ├─────────┼────────────────────────────────────────────────────────────────────────────────────────┤
 │ Clock   │ The time as HH:MM in the Pi's time zone and the date, like the clock app.              │
 └─────────┴────────────────────────────────────────────────────────────────────────────────────────┘

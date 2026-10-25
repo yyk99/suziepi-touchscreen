@@ -20,7 +20,7 @@
 #include <time.h>
 
 #define STALE_SECONDS (15 * 60)
-#define ROTATE_PERIOD_MS (30 * 1000) /* autorotate: time per sensor */
+#define ROTATE_PERIOD_MS (5 * 1000) /* autorotate: time per sensor */
 #define TIME_FONT_PX 140 /* "HH:MM" is about 3 em wide: 140 px -> ~420 px */
 
 extern const uint8_t digits_font_ttf[];
@@ -331,7 +331,7 @@ static void build_ui(void)
 
     /* Auto-rotate row */
     lv_obj_t *r_lbl = make_label(sens, &lv_font_montserrat_20, white);
-    lv_label_set_text(r_lbl, "Rotate sensors every 30 s");
+    lv_label_set_text(r_lbl, "Rotate sensors every 5 s");
     lv_obj_align(r_lbl, LV_ALIGN_TOP_LEFT, 8, 48);
     rotate_switch = lv_switch_create(sens);
     lv_obj_set_size(rotate_switch, 56, 28);
