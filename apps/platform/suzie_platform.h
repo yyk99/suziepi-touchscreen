@@ -26,7 +26,7 @@ extern "C" {
 
 /* Initialise LVGL, the framebuffer display and the touch input.
  * Understands "-f <fbdev>" and "-t <evdev>" on the command line (SDL builds:
- * "-z <zoom>" instead); the touch node is found by name when -t is not given. Also makes SIGINT/SIGTERM end
+ * "-z <zoom>" and "-T <title>" instead); the touch node is found by name when -t is not given. Also makes SIGINT/SIGTERM end
  * suzie_run() cleanly. Returns 0 on success, -1 (after printing why) on error. */
 int suzie_init(int argc, char **argv);
 
@@ -34,6 +34,16 @@ int suzie_init(int argc, char **argv);
  * config file. Call before suzie_init(). Out of range values are ignored; has
  * no effect without SDL. */
 void suzie_set_default_zoom(int zoom);
+
+/* SDL builds: the window title used when "-T" is not given (else the program name from argv[0]). The string is
+ * copied. Call before suzie_init(). NULL clears it; has no effect without
+ * SDL. */
+void suzie_set_default_title(const char *title);
+
+/* Write the file name of "path" without its directory and extension to "out"
+ * (at most cap - 1 characters, always NUL terminated), e.g. "./build/clock.bin"
+ * gives "clock". Used for the SDL window title when none is set. */
+void suzie_title_from_path(const char *path, char *out, size_t cap);
 
 /* Run the LVGL main loop until suzie_request_quit() or SIGINT/SIGTERM, then
  * blank the screen so the last frame does not stay on the panel. */

@@ -422,10 +422,11 @@ static void usage(const char *prog)
            "  -f device   framebuffer device (default /dev/fb1)\n"
            "  -t device   touch device (default: ADS7846 found by name)\n"
            "  -z N        SDL window zoom 1..8, default 2 (desktop build only)\n"
+           "  -T title    SDL window title, default title= in config (desktop build only)\n"
            "  -h          show this help\n"
            "\n"
            "Settings files in ~/.config/komaro-digest/: config (host=, port=, db=,\n"
-           "refresh=) and state (sensor=, unit=, autorotate=, written by the app).\n",
+           "refresh=, zoom=, title=) and state (sensor=, unit=, autorotate=, written by the app).\n",
            prog);
 }
 
@@ -442,6 +443,7 @@ int main(int argc, char **argv)
 
     config_load(&cfg, argc, argv);
     suzie_set_default_zoom(cfg.zoom); /* -z on the command line still wins */
+    suzie_set_default_title(cfg.title[0] ? cfg.title : NULL);
     if (suzie_init(argc, argv) != 0)
         return 1;
 

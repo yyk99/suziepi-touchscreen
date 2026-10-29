@@ -61,6 +61,7 @@ apps/clock/scripts/service.sh stop
 │ -r secs │ Seconds between re-reads of the data (min 5)  │ 180                      │
 │ -f, -t  │ Framebuffer and touch device (suzie_platform) │ fb1, ADS7846             │
 │ -z N    │ Window zoom 1 to 8 (desktop SDL build only)   │ zoom= in config, else 2  │
+│ -T text │ Window title (desktop SDL build only)         │ title= in config         │
 │ -h      │ Print this list of options and exit           │                          │
 └─────────┴───────────────────────────────────────────────┴──────────────────────────┘
 ```
@@ -112,7 +113,7 @@ and both are optional.
 ┌──────────┬────────────────────────────────────────────────────────────────────────┐
 │ File     │ Content                                                                │
 ├──────────┼────────────────────────────────────────────────────────────────────────┤
-│ config   │ Written by hand: host=, port=, db=, refresh=, zoom= lines (# = comment)│
+│ config   │ Written by hand: host=, port=, db=, refresh=, zoom=, title= (# comments)│
 │ state    │ sensor=..., unit=C or F, autorotate=0 or 1: set on the Options page    │
 └──────────┴────────────────────────────────────────────────────────────────────────┘
 ```
