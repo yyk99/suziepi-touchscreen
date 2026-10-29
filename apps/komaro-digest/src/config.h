@@ -1,7 +1,8 @@
 /*
  * Settings live in $XDG_CONFIG_HOME/komaro-digest/ (default ~/.config/...):
  *   config    optional, written by hand:  host=..., port=..., db=..., refresh=...,
- *             zoom=1..8 (SDL window size, desktop build only)
+ *             zoom=1..8 (SDL window size, desktop build only),
+ *             title=... (SDL window title, desktop build only)
  *   state     written by the app: sensor=<name>, unit=C|F and autorotate=0|1, the
  *             choices made on the Sensors and Options pages
  */
@@ -17,6 +18,7 @@ typedef struct {
     char unit;                    /* 'C' or 'F': the temperature shown large */
     int autorotate;               /* 1 = Current page steps through the sensors */
     int zoom;                     /* SDL window zoom from the config file; 0 = not set */
+    char title[64];               /* SDL window title from the config file; empty = not set */
 } app_config_t;
 
 /* Defaults, then the files, then command line options:

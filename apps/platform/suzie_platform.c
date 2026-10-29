@@ -73,6 +73,33 @@ void suzie_set_default_zoom(int zoom)
         default_zoom = zoom;
 }
 
+static char *default_title = NULL;
+
+void suzie_set_default_title(const char *t)
+{
+    if (default_title) {
+        free(default_title);
+        default_title = NULL;
+    }
+    if (t)
+        default_title = strdup(t);
+}
+
+void suzie_title_from_path(const char *path, char *out, size_t cap)
+{
+    const char *slash = strrchr(path, '/');
+    const char *name = slash ? slash + 1 : path;
+    const char *dot = strrchr(name, '.');
+    size_t len = dot && dot != name ? (size_t)(dot - name) : strlen(name);
+
+    if (cap == 0)
+        return;
+    if (len >= cap)
+        len = cap - 1;
+    memcpy(out, name, len);
+    out[len] = '\0';
+}
+
 #if LV_USE_SDL
 static void display_deleted_cb(lv_event_t *e)
 {
@@ -83,6 +110,8 @@ static void display_deleted_cb(lv_event_t *e)
 int suzie_init(int argc, char **argv)
 {
     int zoom = default_zoom;
+    const char *title = default_title;
+    char argv0_title[64];
 
     for (int i = 1; i + 1 < argc; i += 2) {
         if (strcmp(argv[i], "-z") == 0) {
@@ -91,7 +120,14 @@ int suzie_init(int argc, char **argv)
                 fprintf(stderr, "-z must be 1..%d\n", MAX_ZOOM);
                 return -1;
             }
+        } else if (strcmp(argv[i], "-T") == 0) {
+            title = argv[i + 1];
         }
+    }
+
+    if (!title && argc > 0) {
+        suzie_title_from_path(argv[0], argv0_title, sizeof(argv0_title));
+        title = argv0_title;
     }
 
     lv_init();
@@ -103,6 +139,8 @@ int suzie_init(int argc, char **argv)
         return -1;
     }
     lv_sdl_window_set_zoom(disp, (uint8_t)zoom);
+    if (title)
+        lv_sdl_window_set_title(disp, title);
     lv_display_add_event_cb(disp, display_deleted_cb, LV_EVENT_DELETE, NULL);
     lv_sdl_mouse_create();
 

@@ -77,6 +77,7 @@ static void usage(const char *prog)
            "\n"
 #if LV_USE_SDL
            "  -z N        window zoom 1..8, default 2 or zoom= in config (desktop SDL build)\n"
+           "  -T title    window title (desktop SDL build)\n"
 #else
            "  -f device   framebuffer device (default /dev/fb1)\n"
            "  -t device   touch device (default: ADS7846 found by name)\n"

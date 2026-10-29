@@ -69,6 +69,8 @@ static void read_config_file(const char *path, app_config_t *cfg)
             cfg->refresh_s = parse_refresh(val, cfg->refresh_s);
         else if (strcmp(line, "zoom") == 0)
             cfg->zoom = atoi(val);
+        else if (strcmp(line, "title") == 0)
+            snprintf(cfg->title, sizeof(cfg->title), "%s", val);
         else if (strcmp(line, "autorotate") == 0)
             cfg->autorotate = atoi(val) != 0;
         else if (strcmp(line, "sensor") == 0)
