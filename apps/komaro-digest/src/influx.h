@@ -38,6 +38,19 @@ int influx_get_measurements(const influx_conn_t *c, influx_names_t *out);
  * -1 = failure. */
 int influx_get_reading(const influx_conn_t *c, const char *measurement, influx_reading_t *out);
 
+/* Values of a tag key of a measurement (SHOW TAG VALUES), e.g. the "sensor"
+ * tags of "ina219". 0 = ok, -1 = failure. */
+int influx_get_tag_values(const influx_conn_t *c, const char *measurement, const char *key,
+                          influx_names_t *out);
+
+/* Latest sample of the points of a measurement whose tag key equals value.
+ * Same return values as influx_get_reading(). */
+int influx_get_reading_tagged(const influx_conn_t *c, const char *measurement, const char *key,
+                              const char *value, influx_reading_t *out);
+
+/* Reply parser (exposed for tests): SHOW TAG VALUES, the value column. */
+int influx_parse_tag_values(const char *json, influx_names_t *out);
+
 /* Value of a named field, or def when the reading has no such field. */
 double influx_field(const influx_reading_t *r, const char *name, double def);
 int influx_has_field(const influx_reading_t *r, const char *name);

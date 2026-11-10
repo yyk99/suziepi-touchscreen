@@ -67,6 +67,10 @@ static void read_config_file(const char *path, app_config_t *cfg)
             snprintf(cfg->conn.db, sizeof(cfg->conn.db), "%s", val);
         else if (strcmp(line, "refresh") == 0)
             cfg->refresh_s = parse_refresh(val, cfg->refresh_s);
+        else if (strcmp(line, "power_db") == 0)
+            snprintf(cfg->power_db, sizeof(cfg->power_db), "%s", val);
+        else if (strcmp(line, "power_sensor") == 0)
+            snprintf(cfg->power_sensor, sizeof(cfg->power_sensor), "%s", val);
         else if (strcmp(line, "zoom") == 0)
             cfg->zoom = atoi(val);
         else if (strcmp(line, "title") == 0)
@@ -90,6 +94,7 @@ void config_load(app_config_t *cfg, int argc, char **argv)
     cfg->conn.port = 8086;
     snprintf(cfg->conn.db, sizeof(cfg->conn.db), "komaro");
     cfg->conn.timeout_s = 5;
+    snprintf(cfg->power_db, sizeof(cfg->power_db), "ina219");
     cfg->unit = 'C';
     cfg->refresh_s = DEFAULT_REFRESH_S;
 
@@ -117,7 +122,7 @@ void config_load(app_config_t *cfg, int argc, char **argv)
     }
 }
 
-void config_save_state(const char *sensor, char unit, int autorotate)
+void config_save_state(const char *sensor, char unit, int autorotate, const char *power_sensor)
 {
     char dir[200], path[260], parent[200];
 
@@ -135,6 +140,7 @@ void config_save_state(const char *sensor, char unit, int autorotate)
     FILE *f = fopen(path, "w");
     if (!f)
         return;
-    fprintf(f, "sensor=%s\nunit=%c\nautorotate=%d\n", sensor, unit, autorotate ? 1 : 0);
+    fprintf(f, "sensor=%s\nunit=%c\nautorotate=%d\npower_sensor=%s\n", sensor, unit,
+            autorotate ? 1 : 0, power_sensor);
     fclose(f);
 }

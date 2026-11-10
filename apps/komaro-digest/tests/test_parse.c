@@ -91,6 +91,21 @@ static void test_reading(void)
     CHECK(influx_parse_reading("{\"results\":[{\"error\":\"x\"}]}", &r) == -1);
 }
 
+static void test_tag_values(void)
+{
+    const char *ok =
+        "{\"results\":[{\"statement_id\":0,\"series\":[{\"name\":\"ina219\",\"columns\":"
+        "[\"key\",\"value\"],\"values\":[[\"sensor\",\"desk\"],[\"sensor\",\"sensor4\"]]}]}]}";
+    influx_names_t n;
+
+    CHECK(influx_parse_tag_values(ok, &n) == 0);
+    CHECK(n.count == 2);
+    CHECK(strcmp(n.name[0], "desk") == 0);
+    CHECK(strcmp(n.name[1], "sensor4") == 0);
+    CHECK(influx_parse_tag_values("{\"results\":[{\"statement_id\":0}]}", &n) == 0 && n.count == 0);
+    CHECK(influx_parse_tag_values("{\"results\":[{\"error\":\"x\"}]}", &n) == -1);
+}
+
 static void test_resolve(void)
 {
     struct in_addr a;
@@ -107,6 +122,7 @@ int main(void)
     test_time();
     test_measurements();
     test_reading();
+    test_tag_values();
     test_resolve();
     if (failures)
         printf("%d check(s) failed\n", failures);
