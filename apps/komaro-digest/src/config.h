@@ -5,7 +5,7 @@
  *             zoom=1..8 (SDL window size, desktop build only),
  *             title=... (SDL window title, desktop build only)
  *   state     written by the app: sensor=<name>, unit=C|F, autorotate=0|1 and
- *             power_sensor=<name>, the choices made on the Sensors, Power and Options pages
+ *             power_sensor=<name>, the choices made on the Sensors and Options pages
  */
 #ifndef CONFIG_H
 #define CONFIG_H

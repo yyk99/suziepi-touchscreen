@@ -2,9 +2,10 @@
  * komaro-digest: shows the latest InfluxDB sensor values on the SuziePi screen.
  *
  *   Current page  the latest values of the selected sensor
- *   Power page    voltage, current and power of an INA219 sensor, with a list of the sensors
+ *   Power page    voltage, current and power of an INA219 sensor
  *   Clock page    HH:MM and the date, like the clock app
- *   Sensors page  the list of sensors (InfluxDB measurements) to pick from
+ *   Sensors page  the list of sensors to pick from: the InfluxDB measurements for the
+ *                 Current page and the INA219 sensors for the Power page
  *   Options page  the C/F and auto-rotate switches
  *
  * The pages are switched with the buttons along the bottom: Home (Current page),
@@ -49,7 +50,6 @@ static lv_obj_t *power_amp_label;
 static lv_obj_t *power_watt_label;
 static lv_obj_t *power_detail_label;
 static lv_obj_t *power_status_label;
-static lv_obj_t *power_list;
 static lv_obj_t *clock_label;
 static lv_obj_t *date_label;
 
@@ -65,6 +65,9 @@ enum { TAB_CURRENT, TAB_POWER, TAB_SENSORS, TAB_CLOCK, TAB_OPTIONS, TAB_COUNT };
 static unsigned shown_version = (unsigned)-1;
 static influx_names_t shown_names;
 
+/* What a button of the Sensors page selects, kept as its user data. */
+enum { KIND_CLIMATE = 1, KIND_POWER = 2 };
+
 static void save_state(void)
 {
     config_save_state(sensor_name, unit, autorotate, power_sensor_name);
@@ -74,9 +77,17 @@ static void list_select_cb(lv_event_t *e)
 {
     lv_obj_t *btn = lv_event_get_target_obj(e);
     const char *name = lv_list_get_button_text(sensor_list, btn);
+    int kind = (int)(intptr_t)lv_obj_get_user_data(btn);
 
-    if (!name)
+    if (!name || !name[0])
         return;
+    if (kind == KIND_POWER) {
+        snprintf(power_sensor_name, sizeof(power_sensor_name), "%s", name);
+        power_select(name);
+        save_state();
+        lv_tabview_set_active(tabview, TAB_POWER, LV_ANIM_ON);
+        return;
+    }
     snprintf(sensor_name, sizeof(sensor_name), "%s", name);
     model_select(name);
     save_state();
@@ -153,31 +164,49 @@ static lv_obj_t *make_nav_button(lv_obj_t *bar, const char *text, int step)
 static void tab_changed_cb(lv_event_t *e)
 {
     (void)e;
-    if (lv_tabview_get_tab_active(tabview) == TAB_SENSORS)
-        model_refresh(); /* fresh list of sensors when the page is opened */
-    else if (lv_tabview_get_tab_active(tabview) == TAB_POWER)
+    if (lv_tabview_get_tab_active(tabview) == TAB_SENSORS) {
+        model_refresh(); /* fresh lists of sensors when the page is opened */
+        power_refresh();
+    } else if (lv_tabview_get_tab_active(tabview) == TAB_POWER)
         power_refresh();
 }
 
-static void rebuild_list(const model_snapshot_t *s)
+static void add_sensor_button(const char *icon, const char *name, int kind)
 {
-    lv_obj_clean(sensor_list);
-    for (int i = 0; i < s->names.count; i++) {
-        lv_obj_t *btn = lv_list_add_button(sensor_list, LV_SYMBOL_FILE, s->names.name[i]);
-        lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_GREEN), LV_STATE_CHECKED);
-        lv_obj_add_event_cb(btn, list_select_cb, LV_EVENT_CLICKED, NULL);
-    }
-    shown_names = s->names;
+    lv_obj_t *btn = lv_list_add_button(sensor_list, icon, name);
+
+    lv_obj_set_user_data(btn, (void *)(intptr_t)kind);
+    lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_GREEN), LV_STATE_CHECKED);
+    lv_obj_add_event_cb(btn, list_select_cb, LV_EVENT_CLICKED, NULL);
 }
 
-static void mark_selected(const model_snapshot_t *s)
+/* The Sensors page: the measurements (Current page), then the INA219 sensors
+ * (Power page), each group under a heading. */
+static void rebuild_list(void)
+{
+    lv_obj_clean(sensor_list);
+    lv_list_add_text(sensor_list, "Temperature / humidity");
+    for (int i = 0; i < shown_names.count; i++)
+        add_sensor_button(LV_SYMBOL_FILE, shown_names.name[i], KIND_CLIMATE);
+    if (power_shown_names.count > 0) {
+        lv_list_add_text(sensor_list, "Voltage / power");
+        for (int i = 0; i < power_shown_names.count; i++)
+            add_sensor_button(LV_SYMBOL_CHARGE, power_shown_names.name[i], KIND_POWER);
+    }
+}
+
+static void mark_selected(void)
 {
     uint32_t n = lv_obj_get_child_count(sensor_list);
 
     for (uint32_t i = 0; i < n; i++) {
         lv_obj_t *child = lv_obj_get_child(sensor_list, (int32_t)i);
+        int kind = (int)(intptr_t)lv_obj_get_user_data(child);
+        const char *sel = kind == KIND_POWER     ? power_sensor_name
+                          : kind == KIND_CLIMATE ? sensor_name
+                                                 : NULL;
         const char *text = lv_list_get_button_text(sensor_list, child);
-        if (text && strcmp(text, s->selected) == 0)
+        if (sel && text && strcmp(text, sel) == 0)
             lv_obj_add_state(child, LV_STATE_CHECKED);
         else
             lv_obj_remove_state(child, LV_STATE_CHECKED);
@@ -267,43 +296,6 @@ static void update_values(const model_snapshot_t *s)
     }
 }
 
-static void power_list_cb(lv_event_t *e)
-{
-    lv_obj_t *btn = lv_event_get_target_obj(e);
-    const char *name = lv_list_get_button_text(power_list, btn);
-
-    if (!name)
-        return;
-    snprintf(power_sensor_name, sizeof(power_sensor_name), "%s", name);
-    power_select(name);
-    save_state();
-}
-
-static void power_rebuild_list(const power_snapshot_t *s)
-{
-    lv_obj_clean(power_list);
-    for (int i = 0; i < s->names.count; i++) {
-        lv_obj_t *btn = lv_list_add_button(power_list, NULL, s->names.name[i]);
-        lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_GREEN), LV_STATE_CHECKED);
-        lv_obj_add_event_cb(btn, power_list_cb, LV_EVENT_CLICKED, NULL);
-    }
-    power_shown_names = s->names;
-}
-
-static void power_mark_selected(const power_snapshot_t *s)
-{
-    uint32_t n = lv_obj_get_child_count(power_list);
-
-    for (uint32_t i = 0; i < n; i++) {
-        lv_obj_t *child = lv_obj_get_child(power_list, (int32_t)i);
-        const char *text = lv_list_get_button_text(power_list, child);
-        if (text && strcmp(text, s->selected) == 0)
-            lv_obj_add_state(child, LV_STATE_CHECKED);
-        else
-            lv_obj_remove_state(child, LV_STATE_CHECKED);
-    }
-}
-
 static void power_update_values(const power_snapshot_t *s)
 {
     char buf[96];
@@ -311,18 +303,18 @@ static void power_update_values(const power_snapshot_t *s)
 
     lv_label_set_text(power_sensor_label, s->selected[0] ? s->selected : "-");
     if (!s->have_reading) {
-        lv_label_set_text(power_volt_label, "-- V");
-        lv_label_set_text(power_amp_label, "-- mA");
-        lv_label_set_text(power_watt_label, "-- mW");
+        lv_label_set_text(power_volt_label, "--");
+        lv_label_set_text(power_amp_label, "--");
+        lv_label_set_text(power_watt_label, "--");
         lv_label_set_text(power_detail_label, "");
         return;
     }
     /* bus_v is the supply voltage; load_v (bus_v + shunt) is shown below it. */
-    snprintf(buf, sizeof(buf), "%.3f V", influx_field(r, "bus_v", 0));
+    snprintf(buf, sizeof(buf), "%.3f", influx_field(r, "bus_v", 0));
     lv_label_set_text(power_volt_label, buf);
-    snprintf(buf, sizeof(buf), "%.1f mA", influx_field(r, "current_ma", 0));
+    snprintf(buf, sizeof(buf), "%.1f", influx_field(r, "current_ma", 0));
     lv_label_set_text(power_amp_label, buf);
-    snprintf(buf, sizeof(buf), "%.1f mW", influx_field(r, "power_mw", 0));
+    snprintf(buf, sizeof(buf), "%.1f", influx_field(r, "power_mw", 0));
     lv_label_set_text(power_watt_label, buf);
     snprintf(buf, sizeof(buf), "load %.3f V   shunt %.2f mV", influx_field(r, "load_v", 0),
              influx_field(r, "shunt_mv", 0));
@@ -362,38 +354,50 @@ static void power_update_status(const power_snapshot_t *s)
     lv_obj_set_style_text_color(power_status_label, color, 0);
 }
 
-static void power_poll(void)
+/* Returns 1 when the Sensors page needs its marks (and lists) redrawn. */
+static int power_poll(int *lists_changed)
 {
     power_snapshot_t s;
+    int changed = 0;
 
     power_snapshot(&s);
     snprintf(power_sensor_name, sizeof(power_sensor_name), "%s", s.selected);
     if (s.version != power_shown_version) {
         power_shown_version = s.version;
-        if (s.have_names && memcmp(&s.names, &power_shown_names, sizeof(s.names)) != 0)
-            power_rebuild_list(&s);
-        power_mark_selected(&s);
+        if (s.have_names && memcmp(&s.names, &power_shown_names, sizeof(s.names)) != 0) {
+            power_shown_names = s.names;
+            *lists_changed = 1;
+        }
         power_update_values(&s);
+        changed = 1;
     }
     power_update_status(&s);
+    return changed;
 }
 
 static void poll_cb(lv_timer_t *timer)
 {
     model_snapshot_t s;
+    int lists_changed = 0, marks_changed = 0;
     (void)timer;
 
     model_snapshot(&s);
     snprintf(sensor_name, sizeof(sensor_name), "%s", s.selected);
     if (s.version != shown_version) {
         shown_version = s.version;
-        if (s.have_names && memcmp(&s.names, &shown_names, sizeof(s.names)) != 0)
-            rebuild_list(&s);
-        mark_selected(&s);
+        if (s.have_names && memcmp(&s.names, &shown_names, sizeof(s.names)) != 0) {
+            shown_names = s.names;
+            lists_changed = 1;
+        }
         update_values(&s);
+        marks_changed = 1;
     }
     update_status(&s); /* the age of the reading changes with time */
-    power_poll();
+    marks_changed |= power_poll(&lists_changed);
+    if (lists_changed)
+        rebuild_list();
+    if (lists_changed || marks_changed)
+        mark_selected();
 }
 
 static void clock_cb(lv_timer_t *timer)
@@ -421,6 +425,32 @@ static lv_obj_t *make_label(lv_obj_t *parent, const lv_font_t *font, lv_color_t 
     lv_obj_set_style_text_color(l, color, 0);
     lv_label_set_text(l, "");
     return l;
+}
+
+/* One row of the Power page: the value right-aligned in a fixed-width column,
+ * the unit left-aligned next to it, the pair centred on the page. Returns the
+ * value label. */
+#define POWER_VALUE_W 190
+#define POWER_UNIT_W 100
+#define POWER_GAP 12
+static lv_obj_t *make_power_row(lv_obj_t *parent, lv_color_t color, const char *unit_text,
+                                int32_t y)
+{
+    const int32_t row_w = POWER_VALUE_W + POWER_GAP + POWER_UNIT_W;
+    lv_obj_t *value = make_label(parent, &lv_font_montserrat_48, color);
+    lv_obj_t *unit_lbl = make_label(parent, &lv_font_montserrat_48, color);
+
+    lv_label_set_long_mode(value, LV_LABEL_LONG_CLIP);
+    lv_obj_set_width(value, POWER_VALUE_W);
+    lv_obj_set_style_text_align(value, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_obj_align(value, LV_ALIGN_TOP_MID, POWER_VALUE_W / 2 - row_w / 2, y);
+
+    lv_label_set_long_mode(unit_lbl, LV_LABEL_LONG_CLIP);
+    lv_obj_set_width(unit_lbl, POWER_UNIT_W);
+    lv_obj_set_style_text_align(unit_lbl, LV_TEXT_ALIGN_LEFT, 0);
+    lv_label_set_text(unit_lbl, unit_text);
+    lv_obj_align_to(unit_lbl, value, LV_ALIGN_OUT_RIGHT_MID, POWER_GAP, 0);
+    return value;
 }
 
 static void build_ui(void)
@@ -461,26 +491,19 @@ static void build_ui(void)
     status_label = make_label(cur, &lv_font_montserrat_14, lv_color_hex(0x909090));
     lv_obj_align(status_label, LV_ALIGN_BOTTOM_LEFT, 0, 0);
 
-    /* Power page: the values of an INA219 sensor on the left, the list of
-     * sensors on the right (below the Exit button). */
+    /* Power page: the values of an INA219 sensor. */
     lv_obj_set_style_pad_all(pwr, 0, 0);
     lv_obj_set_scrollbar_mode(pwr, LV_SCROLLBAR_MODE_OFF);
     lv_obj_remove_flag(pwr, LV_OBJ_FLAG_SCROLLABLE);
     power_sensor_label = make_label(pwr, &lv_font_montserrat_20, lv_color_hex(0x80C0FF));
-    lv_obj_align(power_sensor_label, LV_ALIGN_TOP_LEFT, 8, 4);
-    power_volt_label = make_label(pwr, &lv_font_montserrat_48, lv_color_hex(0xFFD040));
-    lv_obj_align(power_volt_label, LV_ALIGN_TOP_LEFT, 8, 34);
-    power_amp_label = make_label(pwr, &lv_font_montserrat_48, lv_color_hex(0x40FF80));
-    lv_obj_align(power_amp_label, LV_ALIGN_TOP_LEFT, 8, 92);
-    power_watt_label = make_label(pwr, &lv_font_montserrat_48, lv_color_hex(0xFF8060));
-    lv_obj_align(power_watt_label, LV_ALIGN_TOP_LEFT, 8, 150);
+    lv_obj_align(power_sensor_label, LV_ALIGN_TOP_MID, 0, 4);
+    power_volt_label = make_power_row(pwr, lv_color_hex(0xFFD040), "V", 34);
+    power_amp_label = make_power_row(pwr, lv_color_hex(0x40FF80), "mA", 92);
+    power_watt_label = make_power_row(pwr, lv_color_hex(0xFF8060), "mW", 150);
     power_detail_label = make_label(pwr, &lv_font_montserrat_14, lv_color_hex(0xA0A0A0));
-    lv_obj_align(power_detail_label, LV_ALIGN_BOTTOM_LEFT, 8, -20);
+    lv_obj_align(power_detail_label, LV_ALIGN_BOTTOM_MID, 0, -20);
     power_status_label = make_label(pwr, &lv_font_montserrat_14, lv_color_hex(0x909090));
-    lv_obj_align(power_status_label, LV_ALIGN_BOTTOM_LEFT, 8, 0);
-    power_list = lv_list_create(pwr);
-    lv_obj_set_size(power_list, 150, 190);
-    lv_obj_align(power_list, LV_ALIGN_TOP_RIGHT, 0, 44);
+    lv_obj_align(power_status_label, LV_ALIGN_BOTTOM_MID, 0, 0);
 
     /* Clock page */
     lv_obj_set_style_pad_all(clk, 0, 0);
