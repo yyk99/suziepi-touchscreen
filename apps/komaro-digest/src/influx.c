@@ -123,7 +123,8 @@ static const jnode_t *first_series(const jnode_t *root, int *err)
     return json_at(json_get(r0, "series"), 0);
 }
 
-int influx_parse_measurements(const char *json, influx_names_t *out)
+/* Names from column `col` of results[0].series[0].values. */
+static int parse_names(const char *json, int col, influx_names_t *out)
 {
     jnode_t *root = json_parse(json);
     int err, rc = 0;
@@ -137,13 +138,24 @@ int influx_parse_measurements(const char *json, influx_names_t *out)
     } else if (s) {
         for (const jnode_t *row = json_get(s, "values") ? json_get(s, "values")->child : NULL;
              row && out->count < INFLUX_MAX_MEASUREMENTS; row = row->next) {
-            const jnode_t *name = json_at(row, 0);
+            const jnode_t *name = json_at(row, col);
             if (name && name->type == J_STR)
                 snprintf(out->name[out->count++], INFLUX_NAME_LEN, "%s", name->str);
         }
     }
     json_free(root);
     return rc;
+}
+
+int influx_parse_measurements(const char *json, influx_names_t *out)
+{
+    return parse_names(json, 0, out);
+}
+
+/* SHOW TAG VALUES: columns are "key", "value". */
+int influx_parse_tag_values(const char *json, influx_names_t *out)
+{
+    return parse_names(json, 1, out);
 }
 
 int influx_parse_reading(const char *json, influx_reading_t *out)
@@ -193,25 +205,71 @@ int influx_get_measurements(const influx_conn_t *c, influx_names_t *out)
     return rc;
 }
 
-int influx_get_reading(const influx_conn_t *c, const char *measurement, influx_reading_t *out)
+/* Names are put inside quotes in the query: refuse anything unusual. */
+static int safe_name(const char *p)
 {
-    char ql[160];
-
-    /* The name is put inside double quotes: refuse anything unusual. */
-    for (const char *p = measurement; *p; p++) {
+    if (!*p)
+        return 0;
+    for (; *p; p++) {
         if (!((*p >= 'A' && *p <= 'Z') || (*p >= 'a' && *p <= 'z') || (*p >= '0' && *p <= '9') ||
               *p == '_' || *p == '-' || *p == '.'))
-            return -1;
+            return 0;
     }
-    snprintf(ql, sizeof(ql), "SELECT * FROM \"%s\" ORDER BY time DESC LIMIT 1", measurement);
+    return 1;
+}
 
+static int get_reading(const influx_conn_t *c, const char *ql, influx_reading_t *out)
+{
     char *body = influx_query(c, ql);
     int rc;
+
     if (!body)
         return -1;
     rc = influx_parse_reading(body, out);
     free(body);
     return rc;
+}
+
+int influx_get_tag_values(const influx_conn_t *c, const char *measurement, const char *key,
+                          influx_names_t *out)
+{
+    char ql[200];
+
+    memset(out, 0, sizeof(*out));
+    if (!safe_name(measurement) || !safe_name(key))
+        return -1;
+    snprintf(ql, sizeof(ql), "SHOW TAG VALUES FROM \"%s\" WITH KEY = \"%s\"", measurement, key);
+    char *body = influx_query(c, ql);
+    int rc;
+    if (!body)
+        return -1;
+    rc = influx_parse_tag_values(body, out);
+    free(body);
+    return rc;
+}
+
+int influx_get_reading_tagged(const influx_conn_t *c, const char *measurement, const char *key,
+                              const char *value, influx_reading_t *out)
+{
+    char ql[256];
+
+    memset(out, 0, sizeof(*out));
+    if (!safe_name(measurement) || !safe_name(key) || !safe_name(value))
+        return -1;
+    snprintf(ql, sizeof(ql),
+             "SELECT * FROM \"%s\" WHERE \"%s\" = '%s' ORDER BY time DESC LIMIT 1", measurement,
+             key, value);
+    return get_reading(c, ql, out);
+}
+
+int influx_get_reading(const influx_conn_t *c, const char *measurement, influx_reading_t *out)
+{
+    char ql[160];
+
+    if (!safe_name(measurement))
+        return -1;
+    snprintf(ql, sizeof(ql), "SELECT * FROM \"%s\" ORDER BY time DESC LIMIT 1", measurement);
+    return get_reading(c, ql, out);
 }
 
 int influx_has_field(const influx_reading_t *r, const char *name)

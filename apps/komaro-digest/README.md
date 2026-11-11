@@ -18,9 +18,15 @@ Swipe sideways, or use the tabs at the bottom of the screen.
 │         │ status line turns orange when the value is older than 15 minutes, and red when the     │
 │         │ database cannot be reached (the last values stay on screen).                           │
 ├─────────┼────────────────────────────────────────────────────────────────────────────────────────┤
-│ Sensors │ The InfluxDB measurements (living_room, sensor, sensor2, ...). Tap one to show it; the │
-│         │ app returns to the Current page and remembers the choice. The list is re-read each     │
-│         │ time the page is opened.                                                               │
+│ Power   │ Voltage (bus_v), current and power of an INA219 sensor (see ina219_plot.py), plus      │
+│         │ the load voltage and shunt voltage in small print. The sensor is picked on the Sensors │
+│         │ page (the first one until then). Read from the separate database power_db (default     │
+│         │ ina219), measurement ina219, on the same server.                                       │
+├─────────┼────────────────────────────────────────────────────────────────────────────────────────┤
+│ Sensors │ Two groups: the InfluxDB measurements (living_room, sensor, sensor2, ...) and,         │
+│         │ below them, the INA219 sensors (values of the "sensor" tag). Tap one to show it; the   │
+│         │ app goes to the Current or Power page and remembers the choice. The lists are re-read  │
+│         │ each time the page is opened.                                                          │
 ├─────────┼────────────────────────────────────────────────────────────────────────────────────────┤
 │ Clock   │ The time as HH:MM in the Pi's time zone and the date, like the clock app.              │
 ├─────────┼────────────────────────────────────────────────────────────────────────────────────────┤
@@ -113,8 +119,8 @@ and both are optional.
 ┌──────────┬────────────────────────────────────────────────────────────────────────┐
 │ File     │ Content                                                                │
 ├──────────┼────────────────────────────────────────────────────────────────────────┤
-│ config   │ Written by hand: host=, port=, db=, refresh=, zoom=, title= (# comments)│
-│ state    │ sensor=..., unit=C or F, autorotate=0 or 1: set on the Options page    │
+│ config   │ Written by hand: host=, port=, db=, power_db=, refresh=, zoom=, title=  │
+│ state    │ sensor=, unit=C or F, autorotate=0 or 1, power_sensor=: set in the app  │
 └──────────┴────────────────────────────────────────────────────────────────────────┘
 ```
 
