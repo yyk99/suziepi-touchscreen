@@ -18,10 +18,10 @@ Swipe sideways, or use the tabs at the bottom of the screen.
 │         │ status line turns orange when the value is older than 15 minutes, and red when the     │
 │         │ database cannot be reached (the last values stay on screen).                           │
 ├─────────┼────────────────────────────────────────────────────────────────────────────────────────┤
-│ Power   │ Voltage (bus_v), current and power of an INA219 sensor (see ina219_plot.py), plus      │
-│         │ the load voltage and shunt voltage in small print. The sensor is picked on the Sensors │
-│         │ page (the first one until then). Read from the separate database power_db (default     │
-│         │ ina219), measurement ina219, on the same server.                                       │
+│ Power   │ Voltage (bus_v), current and power of an INA219 sensor (see ina219_plot.py), laid      │
+│         │ out like the Current page. The sensor is picked on the Sensors page (the first one     │
+│         │ until then). Read from the separate database power_db (default ina219), measurement    │
+│         │ ina219, on the same server.                                                            │
 ├─────────┼────────────────────────────────────────────────────────────────────────────────────────┤
 │ Sensors │ Two groups: the InfluxDB measurements (living_room, sensor, sensor2, ...) and,         │
 │         │ below them, the INA219 sensors (values of the "sensor" tag). Tap one to show it; the   │
