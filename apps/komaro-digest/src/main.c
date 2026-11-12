@@ -212,6 +212,27 @@ static void mark_selected(void)
     }
 }
 
+/* "updated HH:MM (just now | N min ago | H h M min ago)" for the status lines
+ * of the Current and Power pages. Returns the age in seconds. */
+static long format_updated(char *buf, size_t cap, time_t t)
+{
+    long age = (long)(time(NULL) - t);
+    struct tm tm;
+    char hhmm[16];
+
+    localtime_r(&t, &tm);
+    strftime(hhmm, sizeof(hhmm), "%H:%M", &tm);
+    if (age < 0)
+        age = 0;
+    if (age < 90)
+        snprintf(buf, cap, "updated %s (just now)", hhmm);
+    else if (age < 3600)
+        snprintf(buf, cap, "updated %s (%ld min ago)", hhmm, age / 60);
+    else
+        snprintf(buf, cap, "updated %s (%ld h %ld min ago)", hhmm, age / 3600, (age % 3600) / 60);
+    return age;
+}
+
 static void update_status(const model_snapshot_t *s)
 {
     char buf[128];
@@ -224,22 +245,8 @@ static void update_status(const model_snapshot_t *s)
         snprintf(buf, sizeof(buf), "No data for %s", s->selected);
         color = lv_palette_main(LV_PALETTE_ORANGE);
     } else if (s->have_reading && s->reading.time != (time_t)-1 && s->reading.time != 0) {
-        time_t now = time(NULL);
-        long age = (long)(now - s->reading.time);
-        struct tm tm;
-        char hhmm[16];
+        long age = format_updated(buf, sizeof(buf), s->reading.time);
 
-        localtime_r(&s->reading.time, &tm);
-        strftime(hhmm, sizeof(hhmm), "%H:%M", &tm);
-        if (age < 0)
-            age = 0;
-        if (age < 90)
-            snprintf(buf, sizeof(buf), "updated %s (just now)", hhmm);
-        else if (age < 3600)
-            snprintf(buf, sizeof(buf), "updated %s (%ld min ago)", hhmm, age / 60);
-        else
-            snprintf(buf, sizeof(buf), "updated %s (%ld h %ld min ago)", hhmm, age / 3600,
-                     (age % 3600) / 60);
         if (age > STALE_SECONDS)
             color = lv_palette_main(LV_PALETTE_ORANGE);
     } else {
@@ -328,18 +335,8 @@ static void power_update_status(const power_snapshot_t *s)
         snprintf(buf, sizeof(buf), "No data for %s", s->selected);
         color = lv_palette_main(LV_PALETTE_ORANGE);
     } else if (s->have_reading && s->reading.time != (time_t)-1 && s->reading.time != 0) {
-        long age = (long)(time(NULL) - s->reading.time);
-        struct tm tm;
-        char hhmm[16];
+        long age = format_updated(buf, sizeof(buf), s->reading.time);
 
-        localtime_r(&s->reading.time, &tm);
-        strftime(hhmm, sizeof(hhmm), "%H:%M:%S", &tm);
-        if (age < 0)
-            age = 0;
-        if (age < 90)
-            snprintf(buf, sizeof(buf), "updated %s (%ld s ago)", hhmm, age);
-        else
-            snprintf(buf, sizeof(buf), "updated %s (%ld min ago)", hhmm, age / 60);
         if (age > STALE_SECONDS)
             color = lv_palette_main(LV_PALETTE_ORANGE);
     } else {
