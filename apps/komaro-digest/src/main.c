@@ -48,7 +48,6 @@ static lv_obj_t *power_sensor_label;
 static lv_obj_t *power_volt_label;
 static lv_obj_t *power_amp_label;
 static lv_obj_t *power_watt_label;
-static lv_obj_t *power_detail_label;
 static lv_obj_t *power_status_label;
 static lv_obj_t *clock_label;
 static lv_obj_t *date_label;
@@ -213,6 +212,27 @@ static void mark_selected(void)
     }
 }
 
+/* "updated HH:MM (just now | N min ago | H h M min ago)" for the status lines
+ * of the Current and Power pages. Returns the age in seconds. */
+static long format_updated(char *buf, size_t cap, time_t t)
+{
+    long age = (long)(time(NULL) - t);
+    struct tm tm;
+    char hhmm[16];
+
+    localtime_r(&t, &tm);
+    strftime(hhmm, sizeof(hhmm), "%H:%M", &tm);
+    if (age < 0)
+        age = 0;
+    if (age < 90)
+        snprintf(buf, cap, "updated %s (just now)", hhmm);
+    else if (age < 3600)
+        snprintf(buf, cap, "updated %s (%ld min ago)", hhmm, age / 60);
+    else
+        snprintf(buf, cap, "updated %s (%ld h %ld min ago)", hhmm, age / 3600, (age % 3600) / 60);
+    return age;
+}
+
 static void update_status(const model_snapshot_t *s)
 {
     char buf[128];
@@ -225,22 +245,8 @@ static void update_status(const model_snapshot_t *s)
         snprintf(buf, sizeof(buf), "No data for %s", s->selected);
         color = lv_palette_main(LV_PALETTE_ORANGE);
     } else if (s->have_reading && s->reading.time != (time_t)-1 && s->reading.time != 0) {
-        time_t now = time(NULL);
-        long age = (long)(now - s->reading.time);
-        struct tm tm;
-        char hhmm[16];
+        long age = format_updated(buf, sizeof(buf), s->reading.time);
 
-        localtime_r(&s->reading.time, &tm);
-        strftime(hhmm, sizeof(hhmm), "%H:%M", &tm);
-        if (age < 0)
-            age = 0;
-        if (age < 90)
-            snprintf(buf, sizeof(buf), "updated %s (just now)", hhmm);
-        else if (age < 3600)
-            snprintf(buf, sizeof(buf), "updated %s (%ld min ago)", hhmm, age / 60);
-        else
-            snprintf(buf, sizeof(buf), "updated %s (%ld h %ld min ago)", hhmm, age / 3600,
-                     (age % 3600) / 60);
         if (age > STALE_SECONDS)
             color = lv_palette_main(LV_PALETTE_ORANGE);
     } else {
@@ -306,19 +312,15 @@ static void power_update_values(const power_snapshot_t *s)
         lv_label_set_text(power_volt_label, "--");
         lv_label_set_text(power_amp_label, "--");
         lv_label_set_text(power_watt_label, "--");
-        lv_label_set_text(power_detail_label, "");
         return;
     }
-    /* bus_v is the supply voltage; load_v (bus_v + shunt) is shown below it. */
+    /* bus_v is the supply voltage. */
     snprintf(buf, sizeof(buf), "%.3f", influx_field(r, "bus_v", 0));
     lv_label_set_text(power_volt_label, buf);
     snprintf(buf, sizeof(buf), "%.1f", influx_field(r, "current_ma", 0));
     lv_label_set_text(power_amp_label, buf);
     snprintf(buf, sizeof(buf), "%.1f", influx_field(r, "power_mw", 0));
     lv_label_set_text(power_watt_label, buf);
-    snprintf(buf, sizeof(buf), "load %.3f V   shunt %.2f mV", influx_field(r, "load_v", 0),
-             influx_field(r, "shunt_mv", 0));
-    lv_label_set_text(power_detail_label, buf);
 }
 
 static void power_update_status(const power_snapshot_t *s)
@@ -333,18 +335,8 @@ static void power_update_status(const power_snapshot_t *s)
         snprintf(buf, sizeof(buf), "No data for %s", s->selected);
         color = lv_palette_main(LV_PALETTE_ORANGE);
     } else if (s->have_reading && s->reading.time != (time_t)-1 && s->reading.time != 0) {
-        long age = (long)(time(NULL) - s->reading.time);
-        struct tm tm;
-        char hhmm[16];
+        long age = format_updated(buf, sizeof(buf), s->reading.time);
 
-        localtime_r(&s->reading.time, &tm);
-        strftime(hhmm, sizeof(hhmm), "%H:%M:%S", &tm);
-        if (age < 0)
-            age = 0;
-        if (age < 90)
-            snprintf(buf, sizeof(buf), "updated %s (%ld s ago)", hhmm, age);
-        else
-            snprintf(buf, sizeof(buf), "updated %s (%ld min ago)", hhmm, age / 60);
         if (age > STALE_SECONDS)
             color = lv_palette_main(LV_PALETTE_ORANGE);
     } else {
@@ -443,7 +435,7 @@ static lv_obj_t *make_power_row(lv_obj_t *parent, lv_color_t color, const char *
     lv_label_set_long_mode(value, LV_LABEL_LONG_CLIP);
     lv_obj_set_width(value, POWER_VALUE_W);
     lv_obj_set_style_text_align(value, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_align(value, LV_ALIGN_TOP_MID, POWER_VALUE_W / 2 - row_w / 2, y);
+    lv_obj_align(value, LV_ALIGN_CENTER, POWER_VALUE_W / 2 - row_w / 2, y);
 
     lv_label_set_long_mode(unit_lbl, LV_LABEL_LONG_CLIP);
     lv_obj_set_width(unit_lbl, POWER_UNIT_W);
@@ -491,19 +483,17 @@ static void build_ui(void)
     status_label = make_label(cur, &lv_font_montserrat_14, lv_color_hex(0x909090));
     lv_obj_align(status_label, LV_ALIGN_BOTTOM_LEFT, 0, 0);
 
-    /* Power page: the values of an INA219 sensor. */
-    lv_obj_set_style_pad_all(pwr, 0, 0);
+    /* Power page: laid out like the Current page, the values of an INA219 sensor
+     * in the middle. */
     lv_obj_set_scrollbar_mode(pwr, LV_SCROLLBAR_MODE_OFF);
     lv_obj_remove_flag(pwr, LV_OBJ_FLAG_SCROLLABLE);
     power_sensor_label = make_label(pwr, &lv_font_montserrat_20, lv_color_hex(0x80C0FF));
-    lv_obj_align(power_sensor_label, LV_ALIGN_TOP_MID, 0, 4);
-    power_volt_label = make_power_row(pwr, lv_color_hex(0xFFD040), "V", 34);
-    power_amp_label = make_power_row(pwr, lv_color_hex(0x40FF80), "mA", 92);
-    power_watt_label = make_power_row(pwr, lv_color_hex(0xFF8060), "mW", 150);
-    power_detail_label = make_label(pwr, &lv_font_montserrat_14, lv_color_hex(0xA0A0A0));
-    lv_obj_align(power_detail_label, LV_ALIGN_BOTTOM_MID, 0, -20);
+    lv_obj_align(power_sensor_label, LV_ALIGN_TOP_LEFT, 0, 4);
+    power_volt_label = make_power_row(pwr, lv_color_hex(0xFFD040), "V", -58);
+    power_amp_label = make_power_row(pwr, lv_color_hex(0x40FF80), "mA", 0);
+    power_watt_label = make_power_row(pwr, lv_color_hex(0xFF8060), "mW", 58);
     power_status_label = make_label(pwr, &lv_font_montserrat_14, lv_color_hex(0x909090));
-    lv_obj_align(power_status_label, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_align(power_status_label, LV_ALIGN_BOTTOM_LEFT, 0, 0);
 
     /* Clock page */
     lv_obj_set_style_pad_all(clk, 0, 0);
